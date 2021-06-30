@@ -1,0 +1,20 @@
+# generic files to ignore
+.*
+
+# python temp paths
+__pycache__/
+*.py[cod]
+
+# editors
+*~
+*.swp
+*.swo
+*#
+
+# ms-windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# external addons
+cycles/

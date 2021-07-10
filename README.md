@@ -9,4 +9,6 @@ Goals to address:
 
 1. The Blender exporter distributed with the standard Blender distribution does not support exporting X3D scenes that use image based textures. Neither texture support of X3D v3.3 nor the physically based rendering textures of X3D v4 are supported.See: https://developer.blender.org/T66534 address in simplest way possible. Specifically, get the texture URL from Blender PBR nodes, and just use it "naively" for a diffuse texture in Appearance.texture in the X3D output.
 
+2. The exporter should generate X3D 3.3 files (with Appearance and Material nodes) and support an option for X3Dv4 Appearance model (PBR and gltf aligned)
+
 

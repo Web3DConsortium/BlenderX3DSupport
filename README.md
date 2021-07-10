@@ -11,4 +11,6 @@ Goals to address:
 
 2. The exporter should generate X3D 3.3 files (with Appearance and Material nodes) and support an option for X3Dv4 Appearance model (PBR and gltf aligned)
 
+3. Export PhysicalMaterial, export baseColor, baseTexture. As X3D v4 Materials By default already follow PBR, some code may actually get more straightforward this way. If in doubt, follow what glTF exporter does -- they already have Python code to "flatten" complicated Blender material setup using nodes -> simple PBR terms.
+
 

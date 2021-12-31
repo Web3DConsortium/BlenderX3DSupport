@@ -9,6 +9,7 @@
         widget_emboss="#000000ff"
         editor_outline="#000000"
         widget_text_cursor="#3399e6"
+        panel_roundness="0.4"
         transparent_checker_primary="#9b9b9b"
         transparent_checker_secondary="#cacaca"
         transparent_checker_size="8"
@@ -433,7 +434,7 @@
             button="#ffffff00"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -508,7 +509,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -554,7 +555,7 @@
             button="#d8d8d8ff"
             button_title="#1a1a1a"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -612,7 +613,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -687,7 +688,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -772,7 +773,7 @@
             button="#ffffff00"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -832,7 +833,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -869,7 +870,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#d8d8d8ff"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -916,7 +917,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -979,7 +980,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -1030,7 +1031,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -1079,7 +1080,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -1113,7 +1114,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#d8d8d8ff"
             execution_buts="#d8d8d8ff"
             tab_active="#76afff"
@@ -1154,7 +1155,7 @@
             button="#7272727f"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -1219,7 +1220,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -1262,7 +1263,7 @@
             button="#2f303599"
             button_title="#ffffff"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -1296,7 +1297,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -1332,7 +1333,7 @@
             button="#ffffffff"
             button_title="#000000"
             button_text="#000000"
-            button_text_hi="#ffffff"
+            button_text_hi="#000000"
             navigation_bar="#00000000"
             execution_buts="#00000000"
             tab_active="#76afff"
@@ -1342,14 +1343,23 @@
             >
             <panelcolors>
               <ThemePanelColors
-                header="#424242cc"
-                back="#333333b3"
+                header="#d8d8d8ff"
+                back="#ffffffcc"
                 sub_back="#0000003e"
                 >
               </ThemePanelColors>
             </panelcolors>
           </ThemeSpaceGeneric>
         </space>
+        <space_list>
+          <ThemeSpaceListGeneric
+            list="#d8d8d8"
+            list_title="#c3c3c3"
+            list_text="#c3c3c3"
+            list_text_hi="#00ffff"
+            >
+          </ThemeSpaceListGeneric>
+        </space_list>
       </ThemeSpreadsheet>
     </spreadsheet>
     <bone_color_sets>
@@ -1533,7 +1543,6 @@
     <panel_title>
       <ThemeFontStyle
         points="12"
-        font_kerning_style="FITTED"
         shadow="3"
         shadow_offset_x="0"
         shadow_offset_y="-1"
@@ -1545,7 +1554,6 @@
     <widget_label>
       <ThemeFontStyle
         points="11"
-        font_kerning_style="FITTED"
         shadow="3"
         shadow_offset_x="0"
         shadow_offset_y="-1"
@@ -1557,7 +1565,6 @@
     <widget>
       <ThemeFontStyle
         points="11"
-        font_kerning_style="FITTED"
         shadow="1"
         shadow_offset_x="0"
         shadow_offset_y="-1"

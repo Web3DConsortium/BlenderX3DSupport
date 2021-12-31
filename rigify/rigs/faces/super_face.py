@@ -71,8 +71,8 @@ class Rig:
         # RE pattern match right or left parts
         # match the letter "L" (or "R"), followed by an optional dot (".")
         # and 0 or more digits at the end of the the string
-        left_pattern  = 'L\.?\d*$'
-        right_pattern = 'R\.?\d*$'
+        left_pattern  = r'L\.?\d*$'
+        right_pattern = r'R\.?\d*$'
 
         left  = sorted( [ name for name in bones if re.search( left_pattern,  name ) ] )
         right = sorted( [ name for name in bones if re.search( right_pattern, name ) ] )
@@ -1029,6 +1029,10 @@ def add_parameters(params):
 
 def parameters_ui(layout, params):
     """ Create the ui for the rig parameters."""
+
+    layout.label(text='This monolithic face rig is deprecated.', icon='INFO')
+    layout.operator("pose.rigify_upgrade_face")
+    layout.separator()
 
     ControlLayersOption.FACE_PRIMARY.parameters_ui(layout, params)
     ControlLayersOption.FACE_SECONDARY.parameters_ui(layout, params)

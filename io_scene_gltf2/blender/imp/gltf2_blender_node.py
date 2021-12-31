@@ -145,8 +145,8 @@ class BlenderNode():
             arma_mat = vnode.editbone_arma_mat
             editbone.head = arma_mat @ Vector((0, 0, 0))
             editbone.tail = arma_mat @ Vector((0, 1, 0))
-            editbone.align_roll(arma_mat @ Vector((0, 0, 1)) - editbone.head)
             editbone.length = vnode.bone_length
+            editbone.align_roll(arma_mat @ Vector((0, 0, 1)) - editbone.head)
 
             if isinstance(id, int):
                 pynode = gltf.data.nodes[id]
@@ -184,6 +184,10 @@ class BlenderNode():
     @staticmethod
     def create_mesh_object(gltf, vnode):
         pynode = gltf.data.nodes[vnode.mesh_node_idx]
+        if not (0 <= pynode.mesh < len(gltf.data.meshes)):
+            # Avoid traceback for invalid gltf file: invalid reference to meshes array
+            # So return an empty blender object)
+            return bpy.data.objects.new(vnode.name or mesh.name, None)
         pymesh = gltf.data.meshes[pynode.mesh]
 
         # Key to cache the Blender mesh by.
@@ -236,11 +240,6 @@ class BlenderNode():
         pyskin = gltf.data.skins[pynode.skin]
 
         # Armature/bones should have already been created.
-
-        # Create vertex groups for each joint
-        for node_idx in pyskin.joints:
-            bone = gltf.vnodes[node_idx]
-            obj.vertex_groups.new(name=bone.blender_bone_name)
 
         # Create an Armature modifier
         first_bone = gltf.vnodes[pyskin.joints[0]]

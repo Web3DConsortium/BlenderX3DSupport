@@ -157,6 +157,25 @@ class ControlLayersOption:
 ControlLayersOption.FK = ControlLayersOption('fk', description="Layers for the FK controls to be on")
 ControlLayersOption.TWEAK = ControlLayersOption('tweak', description="Layers for the tweak controls to be on")
 
+ControlLayersOption.EXTRA_IK = ControlLayersOption(
+    'extra_ik', toggle_default=False,
+    toggle_name="Extra IK Layers",
+    description="Layers for the optional IK controls to be on",
+)
+
 # Layer parameters used by the super_face rig.
 ControlLayersOption.FACE_PRIMARY = ControlLayersOption('primary', description="Layers for the primary controls to be on")
 ControlLayersOption.FACE_SECONDARY = ControlLayersOption('secondary', description="Layers for the secondary controls to be on")
+
+# Layer parameters used by the skin rigs
+ControlLayersOption.SKIN_PRIMARY = ControlLayersOption(
+    'skin_primary', toggle_default=False,
+    toggle_name="Primary Control Layers",
+    description="Layers for the primary controls to be on",
+)
+
+ControlLayersOption.SKIN_SECONDARY = ControlLayersOption(
+    'skin_secondary', toggle_default=False,
+    toggle_name="Secondary Control Layers",
+    description="Layers for the secondary controls to be on",
+)

@@ -15,8 +15,8 @@
 bl_info = {
     'name': 'glTF 2.0 format',
     'author': 'Julien Duroure, Scurest, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors',
-    "version": (1, 7, 7),
-    'blender': (2, 91, 0),
+    "version": (1, 8, 6),
+    'blender': (3, 0, 0),
     'location': 'File > Import-Export',
     'description': 'Import-Export as glTF 2.0',
     'warning': '',
@@ -122,12 +122,12 @@ class ExportGLTF2_Base:
         items=(('GLB', 'glTF Binary (.glb)',
                 'Exports a single file, with all data packed in binary form. '
                 'Most efficient and portable, but more difficult to edit later'),
-               ('GLTF_EMBEDDED', 'glTF Embedded (.gltf)',
-                'Exports a single file, with all data packed in JSON. '
-                'Less efficient than binary, but easier to edit later'),
                ('GLTF_SEPARATE', 'glTF Separate (.gltf + .bin + textures)',
                 'Exports multiple files, with separate JSON, binary and texture data. '
-                'Easiest to edit later')),
+                'Easiest to edit later'),
+                ('GLTF_EMBEDDED', 'glTF Embedded (.gltf)',
+                 'Exports a single file, with all data packed in JSON. '
+                 'Less efficient than binary, but easier to edit later')),
         description=(
             'Output format and embedding options. Binary is most efficient, '
             'but JSON (embedded or separate) may be easier to edit later'
@@ -171,6 +171,16 @@ class ExportGLTF2_Base:
         name='Textures',
         description='Folder to place texture files in. Relative to the .gltf file',
         default='',
+    )
+
+    export_keep_originals: BoolProperty(
+        name='Keep original',
+        description=('Keep original textures files if possible. '
+                     'WARNING: if you use more than one texture, '
+                     'where pbr standard requires only one, only one texture will be used. '
+                     'This can lead to unexpected results'
+        ),
+        default=False,
     )
 
     export_texcoords: BoolProperty(
@@ -451,14 +461,13 @@ class ExportGLTF2_Base:
         self.will_save_settings = False
         if settings:
             try:
+                if 'export_selected' in settings.keys(): # Back compatibility for export_selected --> use_selection
+                    setattr(self, "use_selection", settings['export_selected'])
+                    settings["use_selection"] = settings['export_selected']
+                    del settings['export_selected']
+                    print("export_selected is now renamed use_selection, and will be deleted in a few release")
                 for (k, v) in settings.items():
-                    if k == "export_selected": # Back compatibility for export_selected --> use_selection
-                        setattr(self, "use_selection", v)
-                        del settings[k]
-                        settings["use_selection"] = v
-                        print("export_selected is now renamed use_selection, and will be deleted in a few release")
-                    else:
-                        setattr(self, k, v)
+                    setattr(self, k, v)
                 self.will_save_settings = True
 
             except (AttributeError, TypeError):
@@ -493,7 +502,8 @@ class ExportGLTF2_Base:
             x: getattr(self, x) for x in dir(all_props)
             if (x.startswith("export_") or x in exceptional) and all_props.get(x) is not None
         }
-
+        if 'export_selected' in export_props.keys():
+            del export_props['export_selected'] # Do not save this property, only here for backward compatibility
         context.scene[self.scene_key] = export_props
 
     def execute(self, context):
@@ -517,6 +527,7 @@ class ExportGLTF2_Base:
             export_settings['gltf_filedirectory'],
             self.export_texture_dir,
         )
+        export_settings['gltf_keep_original_textures'] = self.export_keep_originals
 
         export_settings['gltf_format'] = self.export_format
         export_settings['gltf_image_format'] = self.export_image_format
@@ -653,7 +664,10 @@ class GLTF_PT_export_main(bpy.types.Panel):
 
         layout.prop(operator, 'export_format')
         if operator.export_format == 'GLTF_SEPARATE':
-            layout.prop(operator, 'export_texture_dir', icon='FILE_FOLDER')
+            layout.prop(operator, 'export_keep_originals')
+            if operator.export_keep_originals is False:
+                layout.prop(operator, 'export_texture_dir', icon='FILE_FOLDER')
+
         layout.prop(operator, 'export_copyright')
         layout.prop(operator, 'will_save_settings')
 

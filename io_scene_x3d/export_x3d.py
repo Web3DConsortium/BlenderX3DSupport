@@ -39,7 +39,7 @@ import os
 import bpy
 import mathutils
 
-from bpy_extras.io_utils import create_derived_objects, free_derived_objects
+from bpy_extras.io_utils import create_derived_objects
 
 
 # h3d defines
@@ -1378,7 +1378,8 @@ def export(file,
     def export_object(ident, obj_main_parent, obj_main, obj_children):
         matrix_fallback = mathutils.Matrix()
         world = scene.world
-        free, derived = create_derived_objects(scene, obj_main)
+        derived_dict = create_derived_objects(depsgraph, [obj_main])
+        derived = derived_dict.get(obj_main)
 
         if use_hierarchy:
             obj_main_matrix_world = obj_main.matrix_world
@@ -1468,9 +1469,6 @@ def export(file,
             else:
                 #print "Info: Ignoring [%s], object type [%s] not handle yet" % (object.name,object.getType)
                 pass
-
-        if free:
-            free_derived_objects(obj_main)
 
         # ---------------------------------------------------------------------
         # write out children recursively

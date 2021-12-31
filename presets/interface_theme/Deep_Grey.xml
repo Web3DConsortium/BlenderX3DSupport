@@ -1342,9 +1342,9 @@
             >
             <panelcolors>
               <ThemePanelColors
-                header="#424242cc"
-                back="#333333b3"
-                sub_back="#0000003e"
+                header="#6b6b6bff"
+                back="#474747ff"
+                sub_back="#00000019"
                 >
               </ThemePanelColors>
             </panelcolors>
@@ -1533,7 +1533,6 @@
     <panel_title>
       <ThemeFontStyle
         points="11"
-        font_kerning_style="FITTED"
         shadow="0"
         shadow_offset_x="0"
         shadow_offset_y="-1"
@@ -1545,7 +1544,6 @@
     <widget_label>
       <ThemeFontStyle
         points="11"
-        font_kerning_style="FITTED"
         shadow="0"
         shadow_offset_x="0"
         shadow_offset_y="-1"
@@ -1557,7 +1555,6 @@
     <widget>
       <ThemeFontStyle
         points="11"
-        font_kerning_style="FITTED"
         shadow="0"
         shadow_offset_x="0"
         shadow_offset_y="0"

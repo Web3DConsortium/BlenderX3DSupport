@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 # Contributed to Germano Cavalcante (mano-wii), Florian Meyer (testscreenings),
 # Brendon Murphy (meta-androcto),
-# Maintainer:	Vladimir Spivak (cwolf3d)
+# Maintainer: Vladimir Spivak (cwolf3d)
 # Originally an addon by Bart Crouch
 
 bl_info = {
@@ -843,8 +843,8 @@ def move_verts(object, bm, mapping, move, lock, influence):
                 new_loc = loc * (influence / 100) + \
                                  bm.verts[index].co * ((100 - influence) / 100)
 
-            for vert in bm.verts:
-                for mirror_Vector in mirror_Vectors:
+            for mirror_Vector in mirror_Vectors:
+                for vert in bm.verts:
                     if vert.co == mirror_Vector * bm.verts[index].co:
                         vert.co = mirror_Vector * new_loc
 

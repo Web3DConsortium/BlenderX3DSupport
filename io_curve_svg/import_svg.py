@@ -83,10 +83,7 @@ def SVGParseCoord(coord, size):
 
     if unit == '%':
         return float(size) / 100.0 * val
-    else:
-        return val * units[unit]
-
-    return val
+    return val * units[unit]
 
 
 def SVGRectFromNode(node, context):
@@ -276,9 +273,9 @@ def SVGTransformScale(params):
     return m
 
 
-def SVGTransformSkewX(params):
+def SVGTransformSkewY(params):
     """
-    skewX SVG transform command
+    skewY SVG transform command
     """
 
     ang = float(params[0]) * pi / 180.0
@@ -288,7 +285,7 @@ def SVGTransformSkewX(params):
                   (0.0, 0.0, 1.0))).to_4x4()
 
 
-def SVGTransformSkewY(params):
+def SVGTransformSkewX(params):
     """
     skewX SVG transform command
     """

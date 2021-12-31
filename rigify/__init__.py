@@ -20,9 +20,9 @@
 
 bl_info = {
     "name": "Rigify",
-    "version": (0, 6, 3),
+    "version": (0, 6, 4),
     "author": "Nathan Vegdahl, Lucio Rossi, Ivan Cappiello, Alexander Gavrilov",
-    "blender": (2, 82, 0),
+    "blender": (3, 0, 0),
     "description": "Automatic rigging from building-block components",
     "location": "Armature properties, Bone properties, View3d tools panel, Armature Add menu",
     "doc_url": "{BLENDER_MANUAL_URL}/addons/rigging/rigify/index.html",
@@ -64,6 +64,7 @@ initial_load_order = [
     'rig_ui_template',
     'generate',
     'rot_mode',
+    'operators',
     'ui',
 ]
 
@@ -137,6 +138,11 @@ from bpy.props import (
     PointerProperty,
     CollectionProperty,
 )
+
+
+def get_generator():
+    """Returns the currently active generator instance."""
+    return base_generate.BaseGenerator.instance
 
 
 class RigifyFeatureSets(bpy.types.PropertyGroup):
@@ -449,6 +455,7 @@ def register():
     ui.register()
     feature_set_list.register()
     metarig_menu.register()
+    operators.register()
 
     # Classes.
     for cls in classes:
@@ -505,23 +512,16 @@ def register():
     IDStore.rigify_types = CollectionProperty(type=RigifyName)
     IDStore.rigify_active_type = IntProperty(name="Rigify Active Type", description="The selected rig type")
 
-    bpy.types.Armature.rigify_advanced_generation = BoolProperty(name="Advanced Options",
-        description="Enables/disables advanced options for Rigify rig generation",
-        default=False)
-
-    def update_mode(self, context):
-        if self.rigify_generate_mode == 'new':
-            self.rigify_force_widget_update = False
-
-    bpy.types.Armature.rigify_generate_mode = EnumProperty(name="Rigify Generate Rig Mode",
-        description="'Generate Rig' mode. In 'overwrite' mode the features of the target rig will be updated as defined by the metarig. In 'new' mode a new rig will be created as defined by the metarig. Current mode",
-        update=update_mode,
-        items=( ('overwrite', 'overwrite', ''),
-                ('new', 'new', '')))
-
     bpy.types.Armature.rigify_force_widget_update = BoolProperty(name="Force Widget Update",
         description="Forces Rigify to delete and rebuild all the rig widgets. if unset, only missing widgets will be created",
         default=False)
+
+    bpy.types.Armature.rigify_mirror_widgets = BoolProperty(name="Mirror Widgets",
+        description="Make widgets for left and right side bones linked duplicates with negative X scale for the right side, based on bone name symmetry",
+        default=True)
+    bpy.types.Armature.rigify_widgets_collection = PointerProperty(type=bpy.types.Collection,
+        name="Widgets Collection",
+        description="Defines which collection to place widget objects in. If unset, a new one will be created based on the name of the rig")
 
     bpy.types.Armature.rigify_target_rig = PointerProperty(type=bpy.types.Object,
         name="Rigify Target Rig",
@@ -532,10 +532,9 @@ def register():
         name="Rigify Target Rig UI",
         description="Defines the UI to overwrite. If unset, 'rig_ui.py' will be used")
 
-    bpy.types.Armature.rigify_rig_basename = StringProperty(name="Rigify Rig Name",
-        description="Defines the name of the Rig. If unset, in 'new' mode 'rig' will be used, in 'overwrite' mode the target rig name will be used",
-        default="")
-
+    bpy.types.Armature.rigify_finalize_script = PointerProperty(type=bpy.types.Text,
+        name="Finalize Script",
+        description="Run this script after generation to apply user-specific changes")
     IDStore.rigify_transfer_only_selected = BoolProperty(
         name="Transfer Only Selected",
         description="Transfer selected bones only", default=True)
@@ -577,12 +576,9 @@ def unregister():
     del ArmStore.rigify_colors_index
     del ArmStore.rigify_colors_lock
     del ArmStore.rigify_theme_to_add
-    del ArmStore.rigify_advanced_generation
-    del ArmStore.rigify_generate_mode
     del ArmStore.rigify_force_widget_update
     del ArmStore.rigify_target_rig
     del ArmStore.rigify_rig_ui
-    del ArmStore.rigify_rig_basename
 
     IDStore = bpy.types.WindowManager
     del IDStore.rigify_collection
@@ -597,6 +593,7 @@ def unregister():
     clear_rigify_parameters()
 
     # Sub-modules.
+    operators.unregister()
     metarig_menu.unregister()
     ui.unregister()
     feature_set_list.unregister()

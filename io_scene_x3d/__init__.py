@@ -17,6 +17,9 @@
 # ##### END GPL LICENSE BLOCK #####
 
 # <pep8-80 compliant>
+import logging
+logger = logging.getLogger(__name__)
+logger.warn("importing Web3D Consortium dev version of io_scene_x3d")
 
 bl_info = {
     "name": "Web3D X3D/VRML2 format",

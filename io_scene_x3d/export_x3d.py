@@ -33,6 +33,11 @@ Known issues:
     Can't get the texture array associated with material * not the UV ones;
 """
 
+import logging
+x3dlogger = logging.getLogger(__name__)
+x3dlogger.setLevel(logging.DEBUG)
+
+
 import math
 import os
 
@@ -236,6 +241,8 @@ def export(file,
     import bpy_extras
     from bpy_extras.io_utils import unique_name
     from xml.sax.saxutils import quoteattr, escape
+
+    x3dlogger.debug("X3D exporting to %s" % (file,))
 
     if name_decorations:
         # If names are decorated, the uuid map can be split up
@@ -544,8 +551,40 @@ def export(file,
             mesh_material_mtex = [None] * len(mesh_materials)
             mesh_material_images = [None] * len(mesh_materials)
 
+
+            # development and debugging
+            # apply the algorithm described at
+            # https://blender.stackexchange.com/questions/148388/python-in-2-80-how-to-get-the-base-color-texture-from-a-material
+            # to identify an image used as the "base color" texture
             for i, material in enumerate(mesh_materials):
-                if 0 and material:
+                #if 0 and material:
+                if material:
+                    try:
+                        x3dlogger.debug("searching for texture image in material %s" % material.name)
+                        nodes = material.node_tree.nodes
+                        principled_list = [nd for nd in nodes if nd.type=='BSDF_PRINCIPLED']
+                        if len(principled_list) == 0:
+                            x3dlogger.debug("no BSDF_PRINCIPLED node identified in material")
+                        else:
+                            principled = principled_list[0]
+                            base_color = principled.inputs['Base Color']
+                            if len(base_color.links) == 0:
+                                x3dlogger.debug("no links found in 'Base Color'")
+                            else:
+                                link = base_color.links[0]
+                                link_node = link.from_node
+                                image = link_node.image
+                                x3dlogger.debug("identified image %s" % image.name)
+                    except Exception as exc:
+                        x3dlogger.error(str(exc))
+                    continue
+                    # the continue statement cuts off execution
+                    # of this code intended to 'store' the image
+                    # for later writing of an image texture
+                    
+                    
+                    
+                    
                     for mtex in material.texture_slots:
                         if mtex:
                             tex = mtex.texture

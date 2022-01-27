@@ -34,8 +34,8 @@ Known issues:
 """
 
 import logging
-x3dlogger = logging.getLogger(__name__)
-x3dlogger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 import math
@@ -242,7 +242,7 @@ def export(file,
     from bpy_extras.io_utils import unique_name
     from xml.sax.saxutils import quoteattr, escape
 
-    x3dlogger.debug("X3D exporting to %s" % (file,))
+    logger.debug("X3D exporting to %s" % (file,))
 
     if name_decorations:
         # If names are decorated, the uuid map can be split up
@@ -547,77 +547,88 @@ def export(file,
             if not mesh_materials:
                 mesh_materials = [None]
 
-            mesh_material_tex = [None] * len(mesh_materials)
-            mesh_material_mtex = [None] * len(mesh_materials)
-            mesh_material_images = [None] * len(mesh_materials)
-
-
             # development and debugging
             # apply the algorithm described at
             # https://blender.stackexchange.com/questions/148388/python-in-2-80-how-to-get-the-base-color-texture-from-a-material
             # to identify an image used as the "base color" texture
+            
+            # This implementation of export to X3D only supportes image textures which
+            # the Blender structures stores in a material using nodes and in which the
+            # image texture is applied to the base color node in a BSDF_PRINCIPLED node
+            # moreover, only one image, the first found, will be output as an ImageTexture X3D node
+            # base_color_image_textures_list will hold all images found with this method, with later culling
+            # of multiple images and warning messages
+            
+            # material_base_color_images will be a list of same length as mesh_materials
+            # each element of the list will be a single image identified in the search through that material's nodes
+            # or that element of material_base_color_images will be None
+            material_base_color_images = list()
             for i, material in enumerate(mesh_materials):
-                #if 0 and material:
-                if material:
+                base_color_image_list = []
+                logger.debug("searching image in material[%i] %s" % (i, material ))
+                if material is not None:
                     try:
-                        x3dlogger.debug("searching for texture image in material %s" % material.name)
+                        
                         nodes = material.node_tree.nodes
                         principled_list = [nd for nd in nodes if nd.type=='BSDF_PRINCIPLED']
                         if len(principled_list) == 0:
-                            x3dlogger.debug("no BSDF_PRINCIPLED node identified in material")
+                            logger.debug("no BSDF_PRINCIPLED node identified in material")
                         else:
                             principled = principled_list[0]
                             base_color = principled.inputs['Base Color']
                             if len(base_color.links) == 0:
-                                x3dlogger.debug("no links found in 'Base Color'")
+                                logger.debug("no links found in 'Base Color'")
                             else:
                                 link = base_color.links[0]
                                 link_node = link.from_node
                                 image = link_node.image
-                                x3dlogger.debug("identified image %s" % image.name)
+                                logger.debug("identified image %s %r" % (image.name, image))
+                                base_color_image_list.append( image )
                     except Exception as exc:
-                        x3dlogger.error(str(exc))
-                    continue
-                    # the continue statement cuts off execution
-                    # of this code intended to 'store' the image
-                    # for later writing of an image texture
-                    
-                    
-                    
-                    
-                    for mtex in material.texture_slots:
-                        if mtex:
-                            tex = mtex.texture
-                            if tex and tex.type == 'IMAGE':
-                                image = tex.image
-                                if image:
-                                    mesh_material_tex[i] = tex
-                                    mesh_material_mtex[i] = mtex
-                                    mesh_material_images[i] = image
-                                    break
+                        logger.error(str(exc))
+                # check how many images were located, set a variable base_color_image to an image; or to None
+                if  len(base_color_image_list) == 0:
+                    base_color_image = None
+                else:
+                    base_color_image = base_color_image_list[0]
+                    if len(base_color_image_list)  > 1:
+                        logger.warn("multiple images identified as base_color_image")
+                if (base_color_image):
+                    logger.info("identified base color image: %s" % image.name)      
+                del base_color_image_list
+                material_base_color_images.append(base_color_image)
+            # end iteration throught materials looking for images and construction of material_base_color_images    
+              
+
 
             # fast access!
+            # for reference: See Mesh(ID) documentation in Blender Python API
+            # https://docs.blender.org/api/current/bpy.types.Mesh.html
+            # roughly: vertices are geometric coordinates of vertices
+            # loops is a structure for edges of a polygon face (each loop is a face)
+            # Each polygon is a collection of faces
+            # the following logic presumes that faces in each polygon share one common material
+            # however, it is not necessary that each material only applies to one polygon
             mesh_vertices = mesh.vertices[:]
             mesh_loops = mesh.loops[:]
             mesh_polygons = mesh.polygons[:]
-            mesh_polygons_materials = [p.material_index for p in mesh_polygons]
+            
+            #  p in mesh_polygons is an instance of MeshPolygon
+            # https://docs.blender.org/api/current/bpy.types.MeshPolygon.html#bpy.types.MeshPolygon
+            mesh_polygons_materials = [p.material_index for p in mesh_polygons] 
             mesh_polygons_vertices = [p.vertices[:] for p in mesh_polygons]
-
-            if len(set(mesh_material_images)) > 0:  # make sure there is at least one image
-                mesh_polygons_image = [mesh_material_images[material_index] for material_index in mesh_polygons_materials]
-            else:
-                mesh_polygons_image = [None] * len(mesh_polygons)
-            mesh_polygons_image_unique = set(mesh_polygons_image)
 
             # group faces
             polygons_groups = {}
-            for material_index in range(len(mesh_materials)):
-                for image in mesh_polygons_image_unique:
-                    polygons_groups[material_index, image] = []
-            del mesh_polygons_image_unique
+            # polygon_groups is a dictionary whose keys are tuples (material_index, image), where image can be None
+            # and whose values are lists of indices into this zip-list: zip(mesh_polygons_materials, mesh_polygons_image)
+            #for material_index in range(len(mesh_materials)):
+            #    for image in mesh_polygons_image_unique:
+            #        polygons_groups[material_index, image] = []
+            #del mesh_polygons_image_unique
 
-            for i, (material_index, image) in enumerate(zip(mesh_polygons_materials, mesh_polygons_image)):
-                polygons_groups[material_index, image].append(i)
+            #for i, (material_index, image) in enumerate(zip(mesh_polygons_materials, mesh_polygons_image)):
+            #    polygons_groups[material_index, image].append(i)
 
             # Py dict are sorted now, so we can use directly polygons_groups.items()
             # and still get consistent reproducible outputs.

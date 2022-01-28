@@ -563,43 +563,67 @@ def export(file,
             # each element of the list will be a single image identified in the search through that material's nodes
             # or that element of material_base_color_images will be None
             material_base_color_images = list()
+            
+            # texture_repeat_extension  is a list of values synchronized tied to the material
+            # each element is one of None, 'REPEAT' , 'CLIP'
+            # extension = "REPEAT" if repeatS or repeatT else "CLIP"
+            texture_repeat_extension = list()
+            
+            
             for i, material in enumerate(mesh_materials):
                 base_color_image_list = []
+                texture_repeat_extension_list = []
                 logger.debug("searching image in material[%i] %s" % (i, material ))
                 if material is not None:
-                    try:
-                        
-                        nodes = material.node_tree.nodes
-                        principled_list = [nd for nd in nodes if nd.type=='BSDF_PRINCIPLED']
+                    try:                        
+                        principled_list = [nd for nd in material.node_tree.nodes if nd.type=='BSDF_PRINCIPLED']
                         if len(principled_list) == 0:
                             logger.debug("no BSDF_PRINCIPLED node identified in material")
                         else:
-                            principled = principled_list[0]
-                            base_color = principled.inputs['Base Color']
-                            if len(base_color.links) == 0:
-                                logger.debug("no links found in 'Base Color'")
-                            else:
-                                link = base_color.links[0]
-                                link_node = link.from_node
-                                image = link_node.image
-                                logger.debug("identified image %s %r" % (image.name, image))
-                                base_color_image_list.append( image )
+                            for principled in principled_list:
+                                base_color = principled.inputs['Base Color']
+                                if len(base_color.links) == 0:
+                                    logger.debug("no links found in 'Base Color'")
+                                else:
+                                    link = base_color.links[0]
+                                    link_node = link.from_node
+                                    image = link_node.image
+                                    logger.debug("identified image %s %r" % (image.name, image))
+                                    base_color_image_list.append( image )
+                                    
+                                    
+                                    try:   
+                                        _ext = link_node.extension                                     
+                                        logger.debug("identified extension value: %s" % repr(_ext))
+                                    except Exception as exc:
+                                        _ext = None
+                                        logger.warn("failed to identify image extension: %s" % exc)
+                                    texture_repeat_extension_list.append(_ext)
+                                     
                     except Exception as exc:
-                        logger.error(str(exc))
+                        logger.exception(str(exc))
                 # check how many images were located, set a variable base_color_image to an image; or to None
                 if  len(base_color_image_list) == 0:
                     base_color_image = None
+                    image_extension = None
+                    
                 else:
                     base_color_image = base_color_image_list[0]
+                    image_extension = texture_repeat_extension_list[0]
                     if len(base_color_image_list)  > 1:
                         logger.warn("multiple images identified as base_color_image")
                 if (base_color_image):
                     logger.info("identified base color image: %s" % image.name)      
                 del base_color_image_list
                 material_base_color_images.append(base_color_image)
+                texture_repeat_extension.append( image_extension )
+                
+                
             # end iteration throught materials looking for images and construction of material_base_color_images    
-              
-
+            if not (len(material_base_color_images) == len(mesh_materials)):
+                logger.error("logic error: len(material_base_color_images) == len(mesh_materials) not satisfied")
+            if not (len(texture_repeat_extension) == len(mesh_materials)):
+                logger.error("logic error: len(texture_repeat_extension) == len(mesh_materials) not satisfied")
 
             # fast access!
             # for reference: See Mesh(ID) documentation in Blender Python API
@@ -615,24 +639,20 @@ def export(file,
             
             #  p in mesh_polygons is an instance of MeshPolygon
             # https://docs.blender.org/api/current/bpy.types.MeshPolygon.html#bpy.types.MeshPolygon
-            mesh_polygons_materials = [p.material_index for p in mesh_polygons] 
+            #mesh_polygons_materials = [p.material_index for p in mesh_polygons] 
             mesh_polygons_vertices = [p.vertices[:] for p in mesh_polygons]
 
             # group faces
-            polygons_groups = {}
-            # polygon_groups is a dictionary whose keys are tuples (material_index, image), where image can be None
-            # and whose values are lists of indices into this zip-list: zip(mesh_polygons_materials, mesh_polygons_image)
-            #for material_index in range(len(mesh_materials)):
-            #    for image in mesh_polygons_image_unique:
-            #        polygons_groups[material_index, image] = []
-            #del mesh_polygons_image_unique
-
-            #for i, (material_index, image) in enumerate(zip(mesh_polygons_materials, mesh_polygons_image)):
-            #    polygons_groups[material_index, image].append(i)
-
-            # Py dict are sorted now, so we can use directly polygons_groups.items()
-            # and still get consistent reproducible outputs.
-
+            
+            # form the backward associations from materials to polygons
+            # polygon_groups is a dictionary whose keys are integers, interprable as the
+            # index of materials in mesh_materials sequence, and the values are lists of integers,
+            # the integers interpreted as indices into the mesh_polygons list
+            from collections import defaultdict
+            polygon_groups = defaultdict(list)            
+            for k, polygon in enumerate(mesh_polygons):
+                polygon_groups[polygon.material_index].append(k)
+            
             is_col = mesh.vertex_colors.active
             mesh_loops_col = mesh.vertex_colors.active.data if is_col else None
 
@@ -661,329 +681,332 @@ def export(file,
                 for ltri in mesh.loop_triangles:
                     polygons_to_loop_triangles_indices[ltri.polygon_index].append(ltri)
 
-            for (material_index, image), polygons_group in polygons_groups.items():
-                if polygons_group:
-                    material = mesh_materials[material_index]
+            for material_index, polygon_group in polygon_groups.items():
+                # reminder: polygon_group is a list of indices into the mesh_polygons list
+            
+                material = mesh_materials[material_index]
+                image = material_base_color_images[material_index]
+                fw('%s<Shape>\n' % ident)
+                ident += '\t'
 
-                    fw('%s<Shape>\n' % ident)
-                    ident += '\t'
+                # kludge but as good as it gets!
+                for i in polygon_group:
+                    if mesh_polygons[i].use_smooth:
+                        is_smooth = True
+                        break
+                else:
+                    is_smooth = False    
 
-                    is_smooth = False
+                # UV's and VCols split verts off which effects smoothing
+                # force writing normals in this case.
+                # Also, creaseAngle is not supported for IndexedTriangleSet,
+                # so write normals when is_smooth (otherwise
+                # IndexedTriangleSet can have only all smooth/all flat shading).
+                is_force_normals = use_triangulate and (is_smooth or is_uv or is_col)
 
-                    # kludge but as good as it gets!
-                    for i in polygons_group:
-                        if mesh_polygons[i].use_smooth:
-                            is_smooth = True
-                            break
+                if use_h3d:
+                    gpu_shader = gpu_shader_cache.get(material)  # material can be 'None', uses dummy cache
+                    if gpu_shader is None:
+                        gpu_shader = gpu_shader_cache[material] = gpu.export_shader(scene, material)
 
-                    # UV's and VCols split verts off which effects smoothing
-                    # force writing normals in this case.
-                    # Also, creaseAngle is not supported for IndexedTriangleSet,
-                    # so write normals when is_smooth (otherwise
-                    # IndexedTriangleSet can have only all smooth/all flat shading).
-                    is_force_normals = use_triangulate and (is_smooth or is_uv or is_col)
+                        if 1:  # XXX DEBUG
+                            gpu_shader_tmp = gpu.export_shader(scene, material)
+                            import pprint
+                            print('\nWRITING MATERIAL:', material.name)
+                            
+                            del gpu_shader_tmp['fragment']
+                            del gpu_shader_tmp['vertex']
+                            pprint.pprint(gpu_shader_tmp, width=120)
+                            #pprint.pprint(val['vertex'])
+                            del gpu_shader_tmp
 
-                    if use_h3d:
-                        gpu_shader = gpu_shader_cache.get(material)  # material can be 'None', uses dummy cache
-                        if gpu_shader is None:
-                            gpu_shader = gpu_shader_cache[material] = gpu.export_shader(scene, material)
+                fw('%s<Appearance>\n' % ident)
+                ident += '\t'
 
-                            if 1:  # XXX DEBUG
-                                gpu_shader_tmp = gpu.export_shader(scene, material)
-                                import pprint
-                                print('\nWRITING MATERIAL:', material.name)
-                                del gpu_shader_tmp['fragment']
-                                del gpu_shader_tmp['vertex']
-                                pprint.pprint(gpu_shader_tmp, width=120)
-                                #pprint.pprint(val['vertex'])
-                                del gpu_shader_tmp
+                if image and not use_h3d:
+                    writeImageTexture(ident, image)
 
-                    fw('%s<Appearance>\n' % ident)
-                    ident += '\t'
+                    
+##                    # transform by mtex
+##                    loc = mesh_material_mtex[material_index].offset[:2]
+##
+##                    # mtex_scale * tex_repeat
+##                    sca_x, sca_y = mesh_material_mtex[material_index].scale[:2]
+##
+##                    sca_x *= mesh_material_tex[material_index].repeat_x
+##                    sca_y *= mesh_material_tex[material_index].repeat_y
+##
+##                    # flip x/y is a sampling feature, convert to transform
+##                    if mesh_material_tex[material_index].use_flip_axis:
+##                        rot = math.pi / -2.0
+##                        sca_x, sca_y = sca_y, -sca_x
+##                    else:
+##                        rot = 0.0
+##
+##                    ident_step = ident + (' ' * (-len(ident) + \
+##                    fw('%s<TextureTransform ' % ident)))
+##                    fw('\n')
+##                    # fw('center="%.6f %.6f" ' % (0.0, 0.0))
+##                    fw(ident_step + 'translation="%.6f %.6f"\n' % loc)
+##                    fw(ident_step + 'scale="%.6f %.6f"\n' % (sca_x, sca_y))
+##                    fw(ident_step + 'rotation="%.6f"\n' % rot)
+##                    fw(ident_step + '/>\n')
+                    
+                if use_h3d:
+                    mat_tmp = material if material else gpu_shader_dummy_mat
+                    writeMaterialH3D(ident, mat_tmp, world,
+                                     obj, gpu_shader)
+                    del mat_tmp
+                else:
+                    if material:
+                        writeMaterial(ident, material, world)
 
-                    if image and not use_h3d:
-                        writeImageTexture(ident, image)
+                ident = ident[:-1]
+                fw('%s</Appearance>\n' % ident)
 
-                        # transform by mtex
-                        loc = mesh_material_mtex[material_index].offset[:2]
+                mesh_loops_uv = mesh.uv_layers.active.data if is_uv else None
 
-                        # mtex_scale * tex_repeat
-                        sca_x, sca_y = mesh_material_mtex[material_index].scale[:2]
+                #-- IndexedFaceSet or IndexedLineSet
+                if use_triangulate:
+                    ident_step = ident + (' ' * (-len(ident) + \
+                    fw('%s<IndexedTriangleSet ' % ident)))
 
-                        sca_x *= mesh_material_tex[material_index].repeat_x
-                        sca_y *= mesh_material_tex[material_index].repeat_y
+                    # --- Write IndexedTriangleSet Attributes (same as IndexedFaceSet)
+                    fw('solid="%s"\n' % bool_as_str(material and material.use_backface_culling))
 
-                        # flip x/y is a sampling feature, convert to transform
-                        if mesh_material_tex[material_index].use_flip_axis:
-                            rot = math.pi / -2.0
-                            sca_x, sca_y = sca_y, -sca_x
-                        else:
-                            rot = 0.0
-
-                        ident_step = ident + (' ' * (-len(ident) + \
-                        fw('%s<TextureTransform ' % ident)))
-                        fw('\n')
-                        # fw('center="%.6f %.6f" ' % (0.0, 0.0))
-                        fw(ident_step + 'translation="%.6f %.6f"\n' % loc)
-                        fw(ident_step + 'scale="%.6f %.6f"\n' % (sca_x, sca_y))
-                        fw(ident_step + 'rotation="%.6f"\n' % rot)
-                        fw(ident_step + '/>\n')
-
-                    if use_h3d:
-                        mat_tmp = material if material else gpu_shader_dummy_mat
-                        writeMaterialH3D(ident, mat_tmp, world,
-                                         obj, gpu_shader)
-                        del mat_tmp
+                    if use_normals or is_force_normals:
+                        fw(ident_step + 'normalPerVertex="true"\n')
                     else:
-                        if material:
-                            writeMaterial(ident, material, world)
+                        # Tell X3D browser to generate flat (per-face) normals
+                        fw(ident_step + 'normalPerVertex="false"\n')
 
-                    ident = ident[:-1]
-                    fw('%s</Appearance>\n' % ident)
+                    slot_uv = None
+                    slot_col = None
+                    def _tuple_from_rounded_iter(it):
+                        return tuple(round(v, 5) for v in it)
 
-                    mesh_loops_uv = mesh.uv_layers.active.data if is_uv else None
+                    if is_uv and is_col:
+                        slot_uv = 0
+                        slot_col = 1
 
-                    #-- IndexedFaceSet or IndexedLineSet
-                    if use_triangulate:
-                        ident_step = ident + (' ' * (-len(ident) + \
-                        fw('%s<IndexedTriangleSet ' % ident)))
+                        def vertex_key(lidx):
+                            return (
+                                _tuple_from_rounded_iter(mesh_loops_uv[lidx].uv),
+                                _tuple_from_rounded_iter(mesh_loops_col[lidx].color),
+                            )
+                    elif is_uv:
+                        slot_uv = 0
 
-                        # --- Write IndexedTriangleSet Attributes (same as IndexedFaceSet)
-                        fw('solid="%s"\n' % bool_as_str(material and material.use_backface_culling))
+                        def vertex_key(lidx):
+                            return (
+                                _tuple_from_rounded_iter(mesh_loops_uv[lidx].uv),
+                            )
+                    elif is_col:
+                        slot_col = 0
 
-                        if use_normals or is_force_normals:
-                            fw(ident_step + 'normalPerVertex="true"\n')
-                        else:
-                            # Tell X3D browser to generate flat (per-face) normals
-                            fw(ident_step + 'normalPerVertex="false"\n')
+                        def vertex_key(lidx):
+                            return (
+                                _tuple_from_rounded_iter(mesh_loops_col[lidx].color),
+                            )
+                    else:
+                        # ack, not especially efficient in this case
+                        def vertex_key(lidx):
+                            return None
 
-                        slot_uv = None
-                        slot_col = None
-                        def _tuple_from_rounded_iter(it):
-                            return tuple(round(v, 5) for v in it)
+                    # build a mesh mapping dict
+                    vertex_hash = [{} for i in range(len(mesh.vertices))]
+                    face_tri_list = [[None, None, None] for i in range(len(mesh.loop_triangles))]
+                    vert_tri_list = []
+                    totvert = 0
+                    totface = 0
+                    temp_tri = [None] * 3
+                    for pidx in polygon_group:
+                        for ltri in polygons_to_loop_triangles_indices[pidx]:
+                            for tri_vidx, (lidx, vidx) in enumerate(zip(ltri.loops, ltri.vertices)):
+                                key = vertex_key(lidx)
+                                vh = vertex_hash[vidx]
+                                x3d_v = vh.get(key)
+                                if x3d_v is None:
+                                    x3d_v = key, vidx, totvert
+                                    vh[key] = x3d_v
+                                    # key / original_vertex / new_vertex
+                                    vert_tri_list.append(x3d_v)
+                                    totvert += 1
+                                temp_tri[tri_vidx] = x3d_v
 
-                        if is_uv and is_col:
-                            slot_uv = 0
-                            slot_col = 1
+                            face_tri_list[totface][:] = temp_tri[:]
+                            totface += 1
 
-                            def vertex_key(lidx):
-                                return (
-                                    _tuple_from_rounded_iter(mesh_loops_uv[lidx].uv),
-                                    _tuple_from_rounded_iter(mesh_loops_col[lidx].color),
-                                )
-                        elif is_uv:
-                            slot_uv = 0
+                    del vertex_key
+                    del _tuple_from_rounded_iter
+                    assert(len(face_tri_list) == len(mesh.loop_triangles))
 
-                            def vertex_key(lidx):
-                                return (
-                                    _tuple_from_rounded_iter(mesh_loops_uv[lidx].uv),
-                                )
-                        elif is_col:
-                            slot_col = 0
+                    fw(ident_step + 'index="')
+                    for x3d_f in face_tri_list:
+                        fw('%i %i %i ' % (x3d_f[0][2], x3d_f[1][2], x3d_f[2][2]))
+                    fw('"\n')
 
-                            def vertex_key(lidx):
-                                return (
-                                    _tuple_from_rounded_iter(mesh_loops_col[lidx].color),
-                                )
-                        else:
-                            # ack, not especially efficient in this case
-                            def vertex_key(lidx):
-                                return None
+                    # close IndexedTriangleSet
+                    fw(ident_step + '>\n')
+                    ident += '\t'
 
-                        # build a mesh mapping dict
-                        vertex_hash = [{} for i in range(len(mesh.vertices))]
-                        face_tri_list = [[None, None, None] for i in range(len(mesh.loop_triangles))]
-                        vert_tri_list = []
-                        totvert = 0
-                        totface = 0
-                        temp_tri = [None] * 3
-                        for pidx in polygons_group:
-                            for ltri in polygons_to_loop_triangles_indices[pidx]:
-                                for tri_vidx, (lidx, vidx) in enumerate(zip(ltri.loops, ltri.vertices)):
-                                    key = vertex_key(lidx)
-                                    vh = vertex_hash[vidx]
-                                    x3d_v = vh.get(key)
-                                    if x3d_v is None:
-                                        x3d_v = key, vidx, totvert
-                                        vh[key] = x3d_v
-                                        # key / original_vertex / new_vertex
-                                        vert_tri_list.append(x3d_v)
-                                        totvert += 1
-                                    temp_tri[tri_vidx] = x3d_v
+                    fw('%s<Coordinate ' % ident)
+                    fw('point="')
+                    for x3d_v in vert_tri_list:
+                        fw('%.6f %.6f %.6f ' % mesh_vertices[x3d_v[1]].co[:])
+                    fw('" />\n')
 
-                                face_tri_list[totface][:] = temp_tri[:]
-                                totface += 1
-
-                        del vertex_key
-                        del _tuple_from_rounded_iter
-                        assert(len(face_tri_list) == len(mesh.loop_triangles))
-
-                        fw(ident_step + 'index="')
-                        for x3d_f in face_tri_list:
-                            fw('%i %i %i ' % (x3d_f[0][2], x3d_f[1][2], x3d_f[2][2]))
-                        fw('"\n')
-
-                        # close IndexedTriangleSet
-                        fw(ident_step + '>\n')
-                        ident += '\t'
-
-                        fw('%s<Coordinate ' % ident)
-                        fw('point="')
+                    if use_normals or is_force_normals:
+                        fw('%s<Normal ' % ident)
+                        fw('vector="')
                         for x3d_v in vert_tri_list:
-                            fw('%.6f %.6f %.6f ' % mesh_vertices[x3d_v[1]].co[:])
+                            fw('%.6f %.6f %.6f ' % mesh_vertices[x3d_v[1]].normal[:])
                         fw('" />\n')
 
-                        if use_normals or is_force_normals:
-                            fw('%s<Normal ' % ident)
-                            fw('vector="')
-                            for x3d_v in vert_tri_list:
-                                fw('%.6f %.6f %.6f ' % mesh_vertices[x3d_v[1]].normal[:])
-                            fw('" />\n')
+                    if is_uv:
+                        fw('%s<TextureCoordinate point="' % ident)
+                        for x3d_v in vert_tri_list:
+                            fw('%.4f %.4f ' % x3d_v[0][slot_uv])
+                        fw('" />\n')
 
-                        if is_uv:
-                            fw('%s<TextureCoordinate point="' % ident)
-                            for x3d_v in vert_tri_list:
-                                fw('%.4f %.4f ' % x3d_v[0][slot_uv])
-                            fw('" />\n')
+                    if is_col:
+                        fw('%s<ColorRGBA color="' % ident)
+                        for x3d_v in vert_tri_list:
+                            fw('%.3f %.3f %.3f %.3f ' % x3d_v[0][slot_col])
+                        fw('" />\n')
 
-                        if is_col:
-                            fw('%s<ColorRGBA color="' % ident)
-                            for x3d_v in vert_tri_list:
-                                fw('%.3f %.3f %.3f %.3f ' % x3d_v[0][slot_col])
-                            fw('" />\n')
+                    if use_h3d:
+                        # write attributes
+                        for gpu_attr in gpu_shader['attributes']:
 
-                        if use_h3d:
-                            # write attributes
-                            for gpu_attr in gpu_shader['attributes']:
+                            # UVs
+                            if gpu_attr['type'] == gpu.CD_MTFACE:
+                                if gpu_attr['datatype'] == gpu.GPU_DATA_2F:
+                                    fw('%s<FloatVertexAttribute ' % ident)
+                                    fw('name="%s" ' % gpu_attr['varname'])
+                                    fw('numComponents="2" ')
+                                    fw('value="')
+                                    for x3d_v in vert_tri_list:
+                                        fw('%.4f %.4f ' % x3d_v[0][slot_uv])
+                                    fw('" />\n')
+                                else:
+                                    assert(0)
 
-                                # UVs
-                                if gpu_attr['type'] == gpu.CD_MTFACE:
-                                    if gpu_attr['datatype'] == gpu.GPU_DATA_2F:
-                                        fw('%s<FloatVertexAttribute ' % ident)
-                                        fw('name="%s" ' % gpu_attr['varname'])
-                                        fw('numComponents="2" ')
-                                        fw('value="')
-                                        for x3d_v in vert_tri_list:
-                                            fw('%.4f %.4f ' % x3d_v[0][slot_uv])
-                                        fw('" />\n')
-                                    else:
-                                        assert(0)
+                            elif gpu_attr['type'] == gpu.CD_MCOL:
+                                if gpu_attr['datatype'] == gpu.GPU_DATA_4UB:
+                                    pass  # XXX, H3D can't do
+                                else:
+                                    assert(0)
 
-                                elif gpu_attr['type'] == gpu.CD_MCOL:
-                                    if gpu_attr['datatype'] == gpu.GPU_DATA_4UB:
-                                        pass  # XXX, H3D can't do
-                                    else:
-                                        assert(0)
+                    ident = ident[:-1]
 
-                        ident = ident[:-1]
+                    fw('%s</IndexedTriangleSet>\n' % ident)
 
-                        fw('%s</IndexedTriangleSet>\n' % ident)
+                else:
+                    ident_step = ident + (' ' * (-len(ident) + \
+                    fw('%s<IndexedFaceSet ' % ident)))
 
-                    else:
-                        ident_step = ident + (' ' * (-len(ident) + \
-                        fw('%s<IndexedFaceSet ' % ident)))
+                    # --- Write IndexedFaceSet Attributes (same as IndexedTriangleSet)
+                    fw('solid="%s"\n' % bool_as_str(material and material.use_backface_culling))
+                    if is_smooth:
+                        # use Auto-Smooth angle, if enabled. Otherwise make
+                        # the mesh perfectly smooth by creaseAngle > pi.
+                        fw(ident_step + 'creaseAngle="%.4f"\n' % (mesh.auto_smooth_angle if mesh.use_auto_smooth else 4.0))
 
-                        # --- Write IndexedFaceSet Attributes (same as IndexedTriangleSet)
-                        fw('solid="%s"\n' % bool_as_str(material and material.use_backface_culling))
-                        if is_smooth:
-                            # use Auto-Smooth angle, if enabled. Otherwise make
-                            # the mesh perfectly smooth by creaseAngle > pi.
-                            fw(ident_step + 'creaseAngle="%.4f"\n' % (mesh.auto_smooth_angle if mesh.use_auto_smooth else 4.0))
+                    if use_normals:
+                        # currently not optional, could be made so:
+                        fw(ident_step + 'normalPerVertex="true"\n')
 
-                        if use_normals:
-                            # currently not optional, could be made so:
-                            fw(ident_step + 'normalPerVertex="true"\n')
+                    # IndexedTriangleSet assumes true
+                    if is_col and not is_col_per_vertex:
+                        fw(ident_step + 'colorPerVertex="false"\n')
 
-                        # IndexedTriangleSet assumes true
-                        if is_col and not is_col_per_vertex:
-                            fw(ident_step + 'colorPerVertex="false"\n')
+                    # for IndexedTriangleSet we use a uv per vertex so this isn't needed.
+                    if is_uv:
+                        fw(ident_step + 'texCoordIndex="')
 
-                        # for IndexedTriangleSet we use a uv per vertex so this isn't needed.
-                        if is_uv:
-                            fw(ident_step + 'texCoordIndex="')
+                        j = 0
+                        for i in polygon_group:
+                            num_poly_verts = len(mesh_polygons_vertices[i])
+                            fw('%s -1 ' % ' '.join((str(i) for i in range(j, j + num_poly_verts))))
+                            j += num_poly_verts
+                        fw('"\n')
+                        # --- end texCoordIndex
 
-                            j = 0
-                            for i in polygons_group:
-                                num_poly_verts = len(mesh_polygons_vertices[i])
-                                fw('%s -1 ' % ' '.join((str(i) for i in range(j, j + num_poly_verts))))
-                                j += num_poly_verts
+                    if True:
+                        fw(ident_step + 'coordIndex="')
+                        for i in polygon_group:
+                            poly_verts = mesh_polygons_vertices[i]
+                            fw('%s -1 ' % ' '.join((str(i) for i in poly_verts)))
+
+                        fw('"\n')
+                        # --- end coordIndex
+
+                    # close IndexedFaceSet
+                    fw(ident_step + '>\n')
+                    ident += '\t'
+
+                    # --- Write IndexedFaceSet Elements
+                    if True:
+                        if is_coords_written:
+                            fw('%s<Coordinate USE=%s />\n' % (ident, mesh_id_coords))
+                            if use_normals:
+                                fw('%s<Normal USE=%s />\n' % (ident, mesh_id_normals))
+                        else:
+                            ident_step = ident + (' ' * (-len(ident) + \
+                            fw('%s<Coordinate ' % ident)))
+                            fw('DEF=%s\n' % mesh_id_coords)
+                            fw(ident_step + 'point="')
+                            for v in mesh.vertices:
+                                fw('%.6f %.6f %.6f ' % v.co[:])
                             fw('"\n')
-                            # --- end texCoordIndex
+                            fw(ident_step + '/>\n')
 
-                        if True:
-                            fw(ident_step + 'coordIndex="')
-                            for i in polygons_group:
-                                poly_verts = mesh_polygons_vertices[i]
-                                fw('%s -1 ' % ' '.join((str(i) for i in poly_verts)))
+                            is_coords_written = True
 
-                            fw('"\n')
-                            # --- end coordIndex
-
-                        # close IndexedFaceSet
-                        fw(ident_step + '>\n')
-                        ident += '\t'
-
-                        # --- Write IndexedFaceSet Elements
-                        if True:
-                            if is_coords_written:
-                                fw('%s<Coordinate USE=%s />\n' % (ident, mesh_id_coords))
-                                if use_normals:
-                                    fw('%s<Normal USE=%s />\n' % (ident, mesh_id_normals))
-                            else:
+                            if use_normals:
                                 ident_step = ident + (' ' * (-len(ident) + \
-                                fw('%s<Coordinate ' % ident)))
-                                fw('DEF=%s\n' % mesh_id_coords)
-                                fw(ident_step + 'point="')
+                                fw('%s<Normal ' % ident)))
+                                fw('DEF=%s\n' % mesh_id_normals)
+                                fw(ident_step + 'vector="')
                                 for v in mesh.vertices:
-                                    fw('%.6f %.6f %.6f ' % v.co[:])
+                                    fw('%.6f %.6f %.6f ' % v.normal[:])
                                 fw('"\n')
                                 fw(ident_step + '/>\n')
 
-                                is_coords_written = True
+                    if is_uv:
+                        fw('%s<TextureCoordinate point="' % ident)
+                        for i in polygon_group:
+                            for lidx in mesh_polygons[i].loop_indices:
+                                fw('%.4f %.4f ' % mesh_loops_uv[lidx].uv[:])
+                        fw('" />\n')
 
-                                if use_normals:
-                                    ident_step = ident + (' ' * (-len(ident) + \
-                                    fw('%s<Normal ' % ident)))
-                                    fw('DEF=%s\n' % mesh_id_normals)
-                                    fw(ident_step + 'vector="')
-                                    for v in mesh.vertices:
-                                        fw('%.6f %.6f %.6f ' % v.normal[:])
-                                    fw('"\n')
-                                    fw(ident_step + '/>\n')
-
-                        if is_uv:
-                            fw('%s<TextureCoordinate point="' % ident)
+                    if is_col:
+                        # Need better logic here, dynamic determination
+                        # which of the X3D coloring models fits better this mesh - per face
+                        # or per vertex. Probably with an explicit fallback mode parameter.
+                        fw('%s<ColorRGBA color="' % ident)
+                        if is_col_per_vertex:
+                            for i in range(len(mesh.vertices)):
+                                # may be None,
+                                fw('%.3f %.3f %.3f %.3f ' % (vert_color[i] or (0.0, 0.0, 0.0, 0.0)))
+                        else: # Export as colors per face.
+                            # TODO: average them rather than using the first one!
                             for i in polygons_group:
-                                for lidx in mesh_polygons[i].loop_indices:
-                                    fw('%.4f %.4f ' % mesh_loops_uv[lidx].uv[:])
-                            fw('" />\n')
+                                fw('%.3f %.3f %.3f %.3f ' % mesh_loops_col[mesh_polygons[i].loop_start].color[:])
+                        fw('" />\n')
 
-                        if is_col:
-                            # Need better logic here, dynamic determination
-                            # which of the X3D coloring models fits better this mesh - per face
-                            # or per vertex. Probably with an explicit fallback mode parameter.
-                            fw('%s<ColorRGBA color="' % ident)
-                            if is_col_per_vertex:
-                                for i in range(len(mesh.vertices)):
-                                    # may be None,
-                                    fw('%.3f %.3f %.3f %.3f ' % (vert_color[i] or (0.0, 0.0, 0.0, 0.0)))
-                            else: # Export as colors per face.
-                                # TODO: average them rather than using the first one!
-                                for i in polygons_group:
-                                    fw('%.3f %.3f %.3f %.3f ' % mesh_loops_col[mesh_polygons[i].loop_start].color[:])
-                            fw('" />\n')
+                    #--- output vertexColors
 
-                        #--- output vertexColors
-
-                        #--- output closing braces
-                        ident = ident[:-1]
-
-                        fw('%s</IndexedFaceSet>\n' % ident)
-
+                    #--- output closing braces
                     ident = ident[:-1]
-                    fw('%s</Shape>\n' % ident)
 
-                    # XXX
+                    fw('%s</IndexedFaceSet>\n' % ident)
+
+                ident = ident[:-1]
+                fw('%s</Shape>\n' % ident)
+
+                
 
             #fw('%s<PythonScript DEF="PS" url="object.py" >\n' % ident)
             #fw('%s    <ShaderProgram USE="MA_Material.005" containerField="references"/>\n' % ident)
@@ -1315,6 +1338,7 @@ def export(file,
             fw('%s</ComposedShader>\n' % ident)
 
     def writeImageTexture(ident, image):
+
         image_id = quoteattr(unique_name(image, IM_ + image.name, uuid_cache_image, clean_func=clean_def, sep="_"))
 
         if image.tag:
@@ -1551,7 +1575,7 @@ def export(file,
         else:
             objects = [obj for obj in view_layer.objects if obj.visible_get(view_layer=view_layer)]
 
-        print('Info: starting X3D export to %r...' % file.name)
+        logger.info('starting X3D export to %r' % file.name)
         ident = ''
         ident = writeHeader(ident)
 
@@ -1585,7 +1609,7 @@ def export(file,
     # print(copy_set)
     bpy_extras.io_utils.path_reference_copy(copy_set)
 
-    print('Info: finished X3D export to %r' % file.name)
+    logger.info('finished X3D export to %r' % file.name)
 
 
 ##########################################################

@@ -19,6 +19,7 @@
 # <pep8-80 compliant>
 import logging
 logger = logging.getLogger(__name__)
+logger.addHandler( logging.NullHandler() )
 logger.warn("importing Web3D Consortium dev version of io_scene_x3d")
 
 bl_info = {

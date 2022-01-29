@@ -242,7 +242,7 @@ def export(file,
     from bpy_extras.io_utils import unique_name
     from xml.sax.saxutils import quoteattr, escape
 
-    logger.debug("X3D exporting to %s" % (file,))
+    logger.debug("X3D exporting to %s" % (file.name,))
 
     if name_decorations:
         # If names are decorated, the uuid map can be split up
@@ -573,7 +573,7 @@ def export(file,
             for i, material in enumerate(mesh_materials):
                 base_color_image_list = []
                 texture_repeat_extension_list = []
-                logger.debug("searching image in material[%i] %s" % (i, material ))
+                logger.debug("searching image in material[%i] %s" % (i, material.name ))
                 if material is not None:
                     try:                        
                         principled_list = [nd for nd in material.node_tree.nodes if nd.type=='BSDF_PRINCIPLED']

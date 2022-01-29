@@ -17,6 +17,8 @@
 # ##### END GPL LICENSE BLOCK #####
 
 # <pep8 compliant>
+import logging
+logger = logging.getLogger(__name__)
 
 DEBUG = False
 
@@ -3512,6 +3514,7 @@ def load_web3d(
         HELPER_FUNC=None
         ):
 
+    logger.debug("import_x3d.load_web3d reading from %s" % filepath)
     # Used when adding blender primitives
     GLOBALS['CIRCLE_DETAIL'] = PREF_CIRCLE_DIV
 
@@ -3628,6 +3631,7 @@ def load_web3d(
         # update deps
         bpycontext.view_layer.update()
         del child_dict
+        logger.debug("exit import_x3d.load_web3d")
 
 
 def load_with_profiler(

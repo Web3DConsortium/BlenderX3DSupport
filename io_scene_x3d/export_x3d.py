@@ -686,6 +686,8 @@ def export(file,
             
                 material = mesh_materials[material_index]
                 image = material_base_color_images[material_index]
+                repeat_extension = texture_repeat_extension[material_index]
+                
                 fw('%s<Shape>\n' % ident)
                 ident += '\t'
 
@@ -724,7 +726,8 @@ def export(file,
                 ident += '\t'
 
                 if image and not use_h3d:
-                    writeImageTexture(ident, image)
+                    
+                    writeImageTexture(ident, image, repeat_extension)
 
                     
 ##                    # transform by mtex
@@ -1337,7 +1340,7 @@ def export(file,
 
             fw('%s</ComposedShader>\n' % ident)
 
-    def writeImageTexture(ident, image):
+    def writeImageTexture(ident, image, repeat_extension="REPEAT"):
 
         image_id = quoteattr(unique_name(image, IM_ + image.name, uuid_cache_image, clean_func=clean_def, sep="_"))
 
@@ -1367,7 +1370,19 @@ def export(file,
             images = [f.replace('\\', '/') for f in images]
             images = [f for i, f in enumerate(images) if f not in images[:i]]
 
+            # following code will set both the repeatS and repeatT (boolean fields in the X3D ImageTexture)
+            # value to false is the value in the repeat_extension variable is string 'CLIP'
+            # otherwise repeats both set to true
+            
+            # first, a sanity check
+            if repeat_extension not in ('CLIP', 'REPEAT'):
+                logger.warn("invalid value %s for repeat_extension passed to writeImageTexture" % repr(repeat_extension))
+                
+            x3dRepeatValues = (("true","true") , ("false","false"))[repeat_extension=='CLIP']
+            repeatFieldAttributes = "repeatS='%s' repeatT='%s'\n" % x3dRepeatValues
+            
             fw(ident_step + "url='%s'\n" % ' '.join(['"%s"' % escape(f) for f in images]))
+            fw(ident_step + repeatFieldAttributes )
             fw(ident_step + '/>\n')
 
     def writeBackground(ident, world):

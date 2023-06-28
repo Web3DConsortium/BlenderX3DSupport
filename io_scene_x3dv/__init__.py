@@ -71,7 +71,7 @@ def ensure_filepath_matches_export_format(filepath, export_format):
     if stem.startswith('.') and not ext:
         stem, ext = '', stem
 
-    desired_ext = '.x3d' if export_format == 'X3D' else '.x3dv' if export_format == 'VRML' else '.html' if export_format == 'HTML' else '.json'
+    desired_ext = '.x3d' if export_format == 'X3D' else '.x3dv' if export_format == 'X3DV' else '.html' if export_format == 'HTML' else '.json'
     ext_lower = ext.lower()
     if ext_lower not in ['.x3d', '.x3dv', '.html', '.json']:
         return filepath + desired_ext
@@ -99,7 +99,7 @@ def on_export_format_changed(self, context):
     )
 
     # Also change the filter
-    sfile.params.filter_glob = '*.x3d' if export_format == 'X3D' else '*.x3dv' if export_format == 'VRML' else '*.html' if export_format == 'HTML' else '*.json'
+    sfile.params.filter_glob = '*.x3d' if export_format == 'X3D' else '*.x3dv' if export_format == 'X3DV' else '*.html' if export_format == 'HTML' else '*.json'
     # Force update of file list, has update the filter does not update the real file list
     bpy.ops.file.refresh()
 
@@ -139,7 +139,7 @@ class ExportX3DV_Base(ConvertX3DV_Base):
     export_format: EnumProperty(
         name='Format',
         items=(('X3D', 'x3d (.x3d)','Exports xml style x3d. '),
-               ('VRML', 'x3dv (.x3dv)','vrml2  wrl style '),
+               ('X3DV', 'x3dv (.x3dv)','classic vrml style '),
                ('HTML', 'html (.html)','xml style in html'),
                ('JSON', 'json (.json)','json style')),
         description=(

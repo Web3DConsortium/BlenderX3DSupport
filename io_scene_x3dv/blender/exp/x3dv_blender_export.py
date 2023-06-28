@@ -927,7 +927,6 @@ def export(context, x3dv_export_settings):
 
         # look up material name, use it if available
         if material.tag:
-            fw('%s<Material USE=%s />\n' % (ident, material_id))
             mat = Material(USE=material_id)
         else:
             material.tag = True
@@ -1607,7 +1606,7 @@ def save(context,export_settings):
     if(format=='X3D'):
         blob = x3dmodel.XML()
     elif(format=='X3DV'):
-        blob = x3dmodel.VRML()
+        blob = x3dmodel.VRML(VRML97=False)
     elif(format=='HTML'):
         blob = x3dmodel.X3DOM()
     elif(format=='JSON'):

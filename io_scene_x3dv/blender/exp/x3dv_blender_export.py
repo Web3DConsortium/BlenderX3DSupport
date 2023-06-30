@@ -442,7 +442,6 @@ def export(context, x3dv_export_settings):
         lite.intensity = intensity
         lite.color = clamp_color(light.color)
         lite.direction = orientation
-        lite.location = location
         return lite
 
     def b2xPointLight( obj, matrix, light, world):
@@ -951,7 +950,7 @@ def export(context, x3dv_export_settings):
             mat.ambientIntensity = ambient
             mat.shininess = shininess
             mat.transparency = transp
-            return mat
+        return mat
 
     """
     def b2xMaterialH3D(ident, material, world,
@@ -1376,7 +1375,7 @@ def export(context, x3dv_export_settings):
 
             # H3D - use for writing a dummy transform parent
             is_dummy_tx = False
-
+            node = None
             if obj_type == 'CAMERA':
                 node = b2xViewpoint(obj, obj_matrix)
 
@@ -1437,16 +1436,19 @@ def export(context, x3dv_export_settings):
                 else:
                     node = b2xDirectionalLight( obj, obj_matrix, data, world)
             else:
-                #print "Info: Ignoring [%s], object type [%s] not handle yet" % (object.name,object.getType)
+                print("Info: Ignoring [%s], object type [%s] not handle yet" % (obj.name,obj_type))
                 pass
-            bottom.children.append(node)
+            if node != None:
+                bottom.children.append(node)
 
         # ---------------------------------------------------------------------
         # write out children recursively
         # ---------------------------------------------------------------------
         for obj_child, obj_child_children in obj_children:
-            nodes = b2x_object(obj_main, obj_child, obj_child_children)
-            bottom.children.append(nodes)
+            x3dnodelist = b2x_object(obj_main, obj_child, obj_child_children)
+            if x3dnodelist:
+                for x3dnode in x3dnodelist:
+                    bottom.children.append(x3dnode)
         if is_dummy_tx:
             is_dummy_tx = False
 

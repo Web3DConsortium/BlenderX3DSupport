@@ -430,7 +430,7 @@ def export(context, x3dv_export_settings):
             amb_intensity = ((float(ambi[0] + ambi[1] + ambi[2])) / 3.0) / 2.5
         else:
             ambi = 0
-            amb_intensity = 0.0
+            amb_intensity = 0.07 #was 0, turned it on a bit
 
         intensity = min(light.energy / 1.75, 1.0)
 
@@ -440,6 +440,8 @@ def export(context, x3dv_export_settings):
         lite = DirectionalLight(DEF=light_id)
         lite.ambientIntensity = amb_intensity
         lite.intensity = intensity
+        lite.on = True
+        lite.global_ = True #the way we export wrapping in a transform means to get light we need it global
         lite.color = clamp_color(light.color)
         lite.direction = orientation
         return lite
@@ -1427,6 +1429,7 @@ def export(context, x3dv_export_settings):
             elif obj_type == 'LIGHT':
                 data = obj.data
                 datatype = data.type
+                # print('obj type is LIGHT, datatype %s' % datatype)
                 if datatype == 'POINT':
                     node = b2xPointLight( obj, obj_matrix, data, world)
                 elif datatype == 'SPOT':

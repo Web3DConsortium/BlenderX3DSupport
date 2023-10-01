@@ -1,22 +1,6 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
 #
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Contributors: bart:neeneenee*de, http://www.neeneenee.de/vrml, Campbell Barton
 
@@ -47,6 +31,156 @@ H3D_TOP_LEVEL = 'TOP_LEVEL_TI'
 H3D_CAMERA_FOLLOW = 'CAMERA_FOLLOW_TRANSFORM'
 H3D_VIEW_MATRIX = 'view_matrix'
 
+JointsSegments = {
+"humanoid_root" : "sacrum",
+"sacroiliac" : "pelvis",
+"Sacroiliac" : "pelvis",
+"l_hip" : "l_thigh",
+"l_knee" : "l_calf",
+"l_talocrural" : "l_talus",
+"l_talocalcaneonavicular" : "l_navicular",
+"l_cuneonavicular_1" : "l_cuneiform_1",
+"l_tarsometatarsal_1" : "l_metatarsal_1",
+"l_metatarsophalangeal_1" : "l_tarsal_proximal_phalanx_1",
+"l_tarsal_interphalangeal_1" : "l_tarsal_distal_phalanx_1",
+"l_cuneonavicular_2" : "l_cuneiform_2",
+"l_tarsometatarsal_2" : "l_metatarsal_2",
+"l_metatarsophalangeal_2" : "l_tarsal_proximal_phalanx_2",
+"l_tarsal_proximal_interphalangeal_2" : "l_tarsal_middle_phalanx_2",
+"l_tarsal_distal_interphalangeal_2" : "l_tarsal_distal_phalanx_2",
+"l_cuneonavicular_3" : "l_cuneiform_3",
+"l_tarsometatarsal_3" : "l_metatarsal_3",
+"l_metatarsophalangeal_3" : "l_tarsal_proximal_phalanx_3",
+"l_tarsal_proximal_interphalangeal_3" : "l_tarsal_middle_phalanx_3",
+"l_tarsal_distal_interphalangeal_3" : "l_tarsal_distal_phalanx_3",
+"l_calcaneuscuboid" : "l_calcaneus",
+"l_transversetarsal" : "l_cuboid",
+"l_tarsometatarsal_4" : "l_metatarsal_4",
+"l_metatarsophalangeal_4" : "l_tarsal_proximal_phalanx_4",
+"l_tarsal_proximal_interphalangeal_4" : "l_tarsal_middle_phalanx_4",
+"l_tarsal_distal_interphalangeal_4" : "l_tarsal_distal_phalanx_4",
+"l_tarsometatarsal_5" : "l_metatarsal_5",
+"l_metatarsophalangeal_5" : "l_tarsal_proximal_phalanx_5",
+"l_tarsal_proximal_interphalangeal_5" : "l_tarsal_middle_phalanx_5",
+"l_tarsal_distal_interphalangeal_5" : "l_tarsal_distal_phalanx_5",
+"r_hip" : "r_thigh",
+"r_knee" : "r_calf",
+"r_talocrural" : "r_talus",
+"r_talocalcaneonavicular" : "r_navicular",
+"r_cuneonavicular_1" : "r_cuneiform_1",
+"r_tarsometatarsal_1" : "r_metatarsal_1",
+"r_metatarsophalangeal_1" : "r_tarsal_proximal_phalanx_1",
+"r_tarsal_interphalangeal_1" : "r_tarsal_distal_phalanx_1",
+"r_cuneonavicular_2" : "r_cuneiform_2",
+"r_tarsometatarsal_2" : "r_metatarsal_2",
+"r_metatarsophalangeal_2" : "r_tarsal_proximal_phalanx_2",
+"r_tarsal_proximal_interphalangeal_2" : "r_tarsal_middle_phalanx_2",
+"r_tarsal_distal_interphalangeal_2" : "r_tarsal_distal_phalanx_2",
+"r_cuneonavicular_3" : "r_cuneiform_3",
+"r_tarsometatarsal_3" : "r_metatarsal_3",
+"r_metatarsophalangeal_3" : "r_tarsal_proximal_phalanx_3",
+"r_tarsal_proximal_interphalangeal_3" : "r_tarsal_middle_phalanx_3",
+"r_tarsal_distal_interphalangeal_3" : "r_tarsal_distal_phalanx_3",
+"r_calcaneuscuboid" : "r_calcaneus",
+"r_transversetarsal" : "r_cuboid",
+"r_tarsometatarsal_4" : "r_metatarsal_4",
+"r_metatarsophalangeal_4" : "r_tarsal_proximal_phalanx_4",
+"r_tarsal_proximal_interphalangeal_4" : "r_tarsal_middle_phalanx_4",
+"r_tarsal_distal_interphalangeal_4" : "r_tarsal_distal_phalanx_4",
+"r_tarsometatarsal_5" : "r_metatarsal_5",
+"r_metatarsophalangeal_5" : "r_tarsal_proximal_phalanx_5",
+"r_tarsal_proximal_interphalangeal_5" : "r_tarsal_middle_phalanx_5",
+"r_tarsal_distal_interphalangeal_5" : "r_tarsal_distal_phalanx_5",
+"vl5" : "l5",
+"vl4" : "l4",
+"vl3" : "l3",
+"vl2" : "l2",
+"vl1" : "l1",
+"vt12" : "t12",
+"vt11" : "t11",
+"vt10" : "t10",
+"vt9" : "t9",
+"vt8" : "t8",
+"vt7" : "t7",
+"vt6" : "t6",
+"vt5" : "t5",
+"vt4" : "t4",
+"vt3" : "t3",
+"vt2" : "t2",
+"vt1" : "t1",
+"vc7" : "c7",
+"vc6" : "c6",
+"vc5" : "c5",
+"vc4" : "c4",
+"vc3" : "c3",
+"vc2" : "c2",
+"vc1" : "c1",
+"skullbase" : "skull",
+"l_eyelid_joint" : "l_eyelid",
+"r_eyelid_joint" : "r_eyelid",
+"l_eyeball_joint" : "l_eyeball",
+"r_eyeball_joint" : "r_eyeball",
+"l_eyebrow_joint" : "l_eyebrow",
+"r_eyebrow_joint" : "r_eyebrow",
+"tongue_joint" : "tongue",
+"temporomandibular" : "jaw",
+"l_sternoclavicular" : "l_clavicle",
+"l_acromioclavicular" : "l_scapula",
+"l_shoulder" : "l_upperarm",
+"l_elbow" : "l_forearm",
+"l_radiocarpal" : "l_carpal",
+"l_midcarpal_1" : "l_trapezium",
+"l_carpometacarpal_1" : "l_metacarpal_1",
+"l_metacarpophalangeal_1" : "l_carpal_proximal_phalanx_1",
+"l_carpal_interphalangeal_1" : "l_carpal_distal_phalanx_1",
+"l_midcarpal_2" : "l_trapezoid",
+"l_carpometacarpal_2" : "l_metacarpal_2",
+"l_metacarpophalangeal_2" : "l_carpal_proximal_phalanx_2",
+"l_carpal_proximal_interphalangeal_2" : "l_carpal_middle_phalanx_2",
+"l_carpal_distal_interphalangeal_2" : "l_carpal_distal_phalanx_2",
+"l_midcarpal_3" : "l_capitate",
+"l_carpometacarpal_3" : "l_metacarpal_3",
+"l_metacarpophalangeal_3" : "l_carpal_proximal_phalanx_3",
+"l_carpal_proximal_interphalangeal_3" : "l_carpal_middle_phalanx_3",
+"l_carpal_distal_interphalangeal_3" : "l_carpal_distal_phalanx_3",
+"l_midcarpal_4_5" : "l_hamate",
+"l_carpometacarpal_4" : "l_metacarpal_4",
+"l_metacarpophalangeal_4" : "l_carpal_proximal_phalanx_4",
+"l_carpal_proximal_interphalangeal_4" : "l_carpal_middle_phalanx_4",
+"l_carpal_distal_interphalangeal_4" : "l_carpal_distal_phalanx_4",
+"l_carpometacarpal_5" : "l_metacarpal_5",
+"l_metacarpophalangeal_5" : "l_carpal_proximal_phalanx_5",
+"l_carpal_proximal_interphalangeal_5" : "l_carpal_middle_phalanx_5",
+"l_carpal_distal_interphalangeal_5" : "l_carpal_distal_phalanx_5",
+"r_sternoclavicular" : "r_clavicle",
+"r_acromioclavicular" : "r_scapula",
+"r_shoulder" : "r_upperarm",
+"r_elbow" : "r_forearm",
+"r_radiocarpal" : "r_carpal",
+"r_midcarpal_1" : "r_trapezium",
+"r_carpometacarpal_1" : "r_metacarpal_1",
+"r_metacarpophalangeal_1" : "r_carpal_proximal_phalanx_1",
+"r_carpal_interphalangeal_1" : "r_carpal_distal_phalanx_1",
+"r_midcarpal_2" : "r_trapezoid",
+"r_carpometacarpal_2" : "r_metacarpal_2",
+"r_metacarpophalangeal_2" : "r_carpal_proximal_phalanx_2",
+"r_carpal_proximal_interphalangeal_2" : "r_carpal_middle_phalanx_2",
+"r_carpal_distal_interphalangeal_2" : "r_carpal_distal_phalanx_2",
+"r_midcarpal_3" : "r_capitate",
+"r_carpometacarpal_3" : "r_metacarpal_3",
+"r_metacarpophalangeal_3" : "r_carpal_proximal_phalanx_3",
+"r_carpal_proximal_interphalangeal_3" : "r_carpal_middle_phalanx_3",
+"r_carpal_distal_interphalangeal_3" : "r_carpal_distal_phalanx_3",
+"r_midcarpal_4_5" : "r_hamate",
+"r_carpometacarpal_4" : "r_metacarpal_4",
+"r_metacarpophalangeal_4" : "r_carpal_proximal_phalanx_4",
+"r_carpal_proximal_interphalangeal_4" : "r_carpal_middle_phalanx_4",
+"r_carpal_distal_interphalangeal_4" : "r_carpal_distal_phalanx_4",
+"r_carpometacarpal_5" : "r_metacarpal_5",
+"r_metacarpophalangeal_5" : "r_carpal_proximal_phalanx_5",
+"r_carpal_proximal_interphalangeal_5" : "r_carpal_middle_phalanx_5",
+"r_carpal_distal_interphalangeal_5" : "r_carpal_distal_phalanx_5",
+}
 
 def clamp_color(col):
     return tuple([max(min(c, 1.0), 0.0) for c in col])
@@ -249,6 +383,7 @@ def export(file,
         uuid_cache_material = {}  # material
         uuid_cache_image = {}     # image
         uuid_cache_world = {}     # world
+        uuid_cache_skeleton = {}  # skeleton
         CA_ = 'CA_'
         OB_ = 'OB_'
         ME_ = 'ME_'
@@ -269,6 +404,7 @@ def export(file,
         uuid_cache_material = uuid_cache         # material
         uuid_cache_image = uuid_cache            # image
         uuid_cache_world = uuid_cache            # world
+        uuid_cache_skeleton = uuid_cache         # skeleton
         del uuid_cache
         CA_ = ''
         OB_ = ''
@@ -284,7 +420,7 @@ def export(file,
     # store files to copy
     copy_set = set()
 
-    # store names of newly cerated meshes, so we dont overlap
+    # store names of newly created meshes, so we dont overlap
     mesh_name_set = set()
 
     fw = file.write
@@ -317,6 +453,7 @@ def export(file,
         ident += '\t'
         fw('%s<head>\n' % ident)
         ident += '\t'
+        fw('%s<component level="1" name="HAnim"/>\n' % (ident))
         fw('%s<meta name="filename" content=%s />\n' % (ident, filepath_quoted))
         fw('%s<meta name="generator" content=%s />\n' % (ident, blender_ver_quoted))
         # this info was never updated, so blender version should be enough
@@ -407,9 +544,145 @@ def export(file,
         ident += '\t'
         return ident
 
+
+
+    def writeHAnim_begin(ident, obj, matrix, def_id, hanim_node_str, segment_name, skinCoordIndex, skinCoordWeight):
+        ident_step = ident + (' ' * (-len(ident) + \
+        fw('%s<%s ' % (ident, hanim_node_str))))
+        if def_id is not None:
+            fw('DEF=%s\n' % def_id)
+        else:
+            fw('\n')
+
+        loc, rot, sca = matrix.decompose()
+        rot = rot.to_axis_angle()
+        rot = (*rot[0], rot[1])
+        center = obj.location
+
+        fw(ident_step + 'translation="%.6f %.6f %.6f"\n' % loc[:])
+        fw(ident_step + 'center="%.6f %.6f %.6f"\n' % center[:])
+        fw(ident_step + 'scale="%.6f %.6f %.6f"\n' % sca[:])
+        fw(ident_step + 'rotation="%.6f %.6f %.6f %.6f"\n' % rot)
+        if hanim_node_str == "HAnimJoint":
+            if skinCoordIndex:
+                fw(ident_step + 'skinCoordIndex="%s"\n' % " ".join(skinCoordIndex))
+            if skinCoordWeight:
+                fw(ident_step + 'skinCoordWeight="%s"\n' % " ".join(skinCoordWeight))
+        if def_id == '"humanoid_root"':
+            print(f' def_id is "humanoid_root", adding containerField="skeleton"')
+            fw(ident_step + 'containerField="skeleton"\n')
+        fw(ident_step + '>\n')
+        if segment_name:
+            fw('%s<HAnimSegment DEF="%s">\n' % (ident_step, segment_name))
+            fw('%s<HAnimSite translation="%.6f %.6f %.6f">\n' % (ident_step, loc[0], loc[1], loc[2]))
+            fw("%s<Transform>\n" % ident_step)
+            #fw("%s<Shape>\n" % ident_step)
+            #fw("%s<Appearance>\n" % ident_step)
+            #fw('%s<Material diffuseColor="0 0 1">\n' % ident_step)
+            #fw("%s</Material>\n" % ident_step)
+            #fw("%s</Appearance>\n" % ident_step)
+            #fw('%s<Box size="1 1 1"/>\n' % ident_step)
+            #fw("%s</Shape>\n" % ident_step)
+            fw("%s</Transform>\n" % ident_step)
+            fw("%s</HAnimSite>\n" % ident_step)
+            fw('%s</HAnimSegment>\n' % ident_step)
+        ident += '\t'
+        return ident
+
     def writeTransform_end(ident):
         ident = ident[:-1]
         fw('%s</Transform>\n' % ident)
+        return ident
+
+    def writeHAnim_end(ident, hanim_node_str):
+        ident = ident[:-1]
+        fw('%s</%s>\n' % (ident, hanim_node_str))
+        return ident
+
+    def writeJoints(ident, joint_parent, joint, matrix, joint_lookup, segment_lookup, armature):
+        matrix_fallback = mathutils.Matrix()
+        world = scene.world
+        if use_hierarchy:
+            try:
+                joint_matrix_world = joint.matrix
+            except AttributeError:
+                joint_matrix_world = matrix
+            try:
+                if joint_parent:
+                    joint_matrix = joint_parent.matrix.inverted(matrix_fallback) @ joint_matrix_world
+                else:
+                    joint_matrix = joint_matrix_world
+            except AttributeError:
+                joint_matrix = joint_matrix_world
+            joint_matrix_world_invert = joint_matrix_world.inverted(matrix_fallback)
+
+
+            for mesh in bpy.data.objects:
+                if mesh.type == 'MESH':
+                    if mesh.parent == armature:
+                        vertex_groups = mesh.vertex_groups
+                        skinCoordIndex = []
+                        for vertex in mesh.data.vertices:
+                            skinCoordWeight = []
+                            for group in vertex.groups:
+                                #print("Mesh", vertex_groups);
+                                # print("groups", vertex.groups);
+                                if group.group >= 0  and group.group < len(vertex_groups) and vertex_groups[group.group].name == joint.name:
+                                    skinCoordIndex.append(str(vertex.index))
+                                    skinCoordWeight.append(str(group.weight))
+        
+            joint_id = quoteattr(unique_name(joint, joint.name, uuid_cache_skeleton, clean_func=clean_def, sep="_"))
+            if not joint.name.endswith("_end"):  # This is actually a site
+                ident = writeHAnim_begin(ident, joint, matrix, joint_id, "HAnimJoint", segment_lookup[joint.name], skinCoordIndex, skinCoordWeight)
+
+            print(f"Info: Exporting joint {joint.name}")
+            for joint_child in joint_lookup[joint.name]['joint_children']:
+                writeJoints(ident, joint, joint_child.joint, joint_matrix, joint_lookup, segment_lookup, armature)
+            if not joint.name.endswith("_end"):  # This is actually a site
+                ident = writeHAnim_end(ident, "HAnimJoint")
+        return ident
+
+
+    class HAnimNode:
+        def __init__(self, name, parent_name, joint, joint_lookup, segment_lookup):
+            self.name = name
+            self.parent_name = parent_name
+            self.joint = joint
+            joint_lookup[joint.name] = {}
+            joint_lookup[joint.name]['joint'] = joint
+            joint_lookup[joint.name]['joint_children'] = []
+            if parent_name:
+                try:
+                    joint_lookup[parent_name]['joint_children'].append(self)
+                except:
+                    joint_lookup[parent_name]['joint_children'].append(self)
+
+    def export_armature(ident, armature_parent, armature, armature_matrix):
+        segment_lookup = JointsSegments
+
+        # each armature needs their own hierarchy
+        joint_lookup = {}
+        bpy.context.view_layer.objects.active = armature
+        bpy.ops.object.mode_set(mode='POSE')  # could be 'POSE' or 'OBJECT'
+        armature_id = quoteattr("hanim_"+armature.parent.name)
+        print(f"Info: Exporting {armature_id}, object type {armature.type}")
+        ident = writeHAnim_begin(ident, armature, armature_matrix, armature_id, "HAnimHumanoid", None, None, None)
+
+        node = HAnimNode(armature.name, None, armature, joint_lookup, segment_lookup)
+
+        for joint in armature.pose.bones:
+            # writeJoints(ident, armature, joint, armature_matrix)
+            if joint.parent:
+                joint_parent_name = joint.parent.name
+            else:
+                joint_parent_name = armature.name
+            node = HAnimNode(joint.name, joint_parent_name, joint, joint_lookup, segment_lookup)
+
+        writeJoints(ident, armature_parent, armature, armature_matrix, joint_lookup, segment_lookup, armature)
+        for joint in armature.pose.bones:
+            if not joint.name.endswith("_end"):  # This is actually a site
+                fw('%s<HAnimJoint USE=%s containerField=%s/>\n' % (ident, quoteattr(joint.name), quoteattr("joints")))
+        ident = writeHAnim_end(ident, "HAnimHumanoid")
         return ident
 
     def writeSpotLight(ident, obj, matrix, light, world):
@@ -1466,8 +1739,12 @@ def export(file,
                     writeDirectionalLight(ident, obj, obj_matrix, data, world)
                 else:
                     writeDirectionalLight(ident, obj, obj_matrix, data, world)
+            elif obj_type == 'ARMATURE':
+                data = obj.data
+                armature = obj
+                export_armature(ident, obj_main, armature, obj_matrix)
             else:
-                #print "Info: Ignoring [%s], object type [%s] not handle yet" % (object.name,object.getType)
+                print(f"Info: Ignoring {obj.name}, object type {obj.type} not handled yet")
                 pass
 
         # ---------------------------------------------------------------------

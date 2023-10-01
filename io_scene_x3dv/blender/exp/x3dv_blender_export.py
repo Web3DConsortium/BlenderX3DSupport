@@ -24,14 +24,167 @@ from io_scene_x3dv.blender.com.x3d import *
 import math
 import os
 import mathutils
+import random
 
 from bpy_extras.io_utils import create_derived_objects
 
+JointsSegments = {
+"humanoid_root" : "sacrum",
+"sacroiliac" : "pelvis",
+"Sacroiliac" : "pelvis",
+"l_hip" : "l_thigh",
+"l_knee" : "l_calf",
+"l_talocrural" : "l_talus",
+"l_talocalcaneonavicular" : "l_navicular",
+"l_cuneonavicular_1" : "l_cuneiform_1",
+"l_tarsometatarsal_1" : "l_metatarsal_1",
+"l_metatarsophalangeal_1" : "l_tarsal_proximal_phalanx_1",
+"l_tarsal_interphalangeal_1" : "l_tarsal_distal_phalanx_1",
+"l_cuneonavicular_2" : "l_cuneiform_2",
+"l_tarsometatarsal_2" : "l_metatarsal_2",
+"l_metatarsophalangeal_2" : "l_tarsal_proximal_phalanx_2",
+"l_tarsal_proximal_interphalangeal_2" : "l_tarsal_middle_phalanx_2",
+"l_tarsal_distal_interphalangeal_2" : "l_tarsal_distal_phalanx_2",
+"l_cuneonavicular_3" : "l_cuneiform_3",
+"l_tarsometatarsal_3" : "l_metatarsal_3",
+"l_metatarsophalangeal_3" : "l_tarsal_proximal_phalanx_3",
+"l_tarsal_proximal_interphalangeal_3" : "l_tarsal_middle_phalanx_3",
+"l_tarsal_distal_interphalangeal_3" : "l_tarsal_distal_phalanx_3",
+"l_calcaneuscuboid" : "l_calcaneus",
+"l_transversetarsal" : "l_cuboid",
+"l_tarsometatarsal_4" : "l_metatarsal_4",
+"l_metatarsophalangeal_4" : "l_tarsal_proximal_phalanx_4",
+"l_tarsal_proximal_interphalangeal_4" : "l_tarsal_middle_phalanx_4",
+"l_tarsal_distal_interphalangeal_4" : "l_tarsal_distal_phalanx_4",
+"l_tarsometatarsal_5" : "l_metatarsal_5",
+"l_metatarsophalangeal_5" : "l_tarsal_proximal_phalanx_5",
+"l_tarsal_proximal_interphalangeal_5" : "l_tarsal_middle_phalanx_5",
+"l_tarsal_distal_interphalangeal_5" : "l_tarsal_distal_phalanx_5",
+"r_hip" : "r_thigh",
+"r_knee" : "r_calf",
+"r_talocrural" : "r_talus",
+"r_talocalcaneonavicular" : "r_navicular",
+"r_cuneonavicular_1" : "r_cuneiform_1",
+"r_tarsometatarsal_1" : "r_metatarsal_1",
+"r_metatarsophalangeal_1" : "r_tarsal_proximal_phalanx_1",
+"r_tarsal_interphalangeal_1" : "r_tarsal_distal_phalanx_1",
+"r_cuneonavicular_2" : "r_cuneiform_2",
+"r_tarsometatarsal_2" : "r_metatarsal_2",
+"r_metatarsophalangeal_2" : "r_tarsal_proximal_phalanx_2",
+"r_tarsal_proximal_interphalangeal_2" : "r_tarsal_middle_phalanx_2",
+"r_tarsal_distal_interphalangeal_2" : "r_tarsal_distal_phalanx_2",
+"r_cuneonavicular_3" : "r_cuneiform_3",
+"r_tarsometatarsal_3" : "r_metatarsal_3",
+"r_metatarsophalangeal_3" : "r_tarsal_proximal_phalanx_3",
+"r_tarsal_proximal_interphalangeal_3" : "r_tarsal_middle_phalanx_3",
+"r_tarsal_distal_interphalangeal_3" : "r_tarsal_distal_phalanx_3",
+"r_calcaneuscuboid" : "r_calcaneus",
+"r_transversetarsal" : "r_cuboid",
+"r_tarsometatarsal_4" : "r_metatarsal_4",
+"r_metatarsophalangeal_4" : "r_tarsal_proximal_phalanx_4",
+"r_tarsal_proximal_interphalangeal_4" : "r_tarsal_middle_phalanx_4",
+"r_tarsal_distal_interphalangeal_4" : "r_tarsal_distal_phalanx_4",
+"r_tarsometatarsal_5" : "r_metatarsal_5",
+"r_metatarsophalangeal_5" : "r_tarsal_proximal_phalanx_5",
+"r_tarsal_proximal_interphalangeal_5" : "r_tarsal_middle_phalanx_5",
+"r_tarsal_distal_interphalangeal_5" : "r_tarsal_distal_phalanx_5",
+"vl5" : "l5",
+"vl4" : "l4",
+"vl3" : "l3",
+"vl2" : "l2",
+"vl1" : "l1",
+"vt12" : "t12",
+"vt11" : "t11",
+"vt10" : "t10",
+"vt9" : "t9",
+"vt8" : "t8",
+"vt7" : "t7",
+"vt6" : "t6",
+"vt5" : "t5",
+"vt4" : "t4",
+"vt3" : "t3",
+"vt2" : "t2",
+"vt1" : "t1",
+"vc7" : "c7",
+"vc6" : "c6",
+"vc5" : "c5",
+"vc4" : "c4",
+"vc3" : "c3",
+"vc2" : "c2",
+"vc1" : "c1",
+"skullbase" : "skull",
+"l_eyelid_joint" : "l_eyelid",
+"r_eyelid_joint" : "r_eyelid",
+"l_eyeball_joint" : "l_eyeball",
+"r_eyeball_joint" : "r_eyeball",
+"l_eyebrow_joint" : "l_eyebrow",
+"r_eyebrow_joint" : "r_eyebrow",
+"tongue_joint" : "tongue",
+"temporomandibular" : "jaw",
+"l_sternoclavicular" : "l_clavicle",
+"l_acromioclavicular" : "l_scapula",
+"l_shoulder" : "l_upperarm",
+"l_elbow" : "l_forearm",
+"l_radiocarpal" : "l_carpal",
+"l_midcarpal_1" : "l_trapezium",
+"l_carpometacarpal_1" : "l_metacarpal_1",
+"l_metacarpophalangeal_1" : "l_carpal_proximal_phalanx_1",
+"l_carpal_interphalangeal_1" : "l_carpal_distal_phalanx_1",
+"l_midcarpal_2" : "l_trapezoid",
+"l_carpometacarpal_2" : "l_metacarpal_2",
+"l_metacarpophalangeal_2" : "l_carpal_proximal_phalanx_2",
+"l_carpal_proximal_interphalangeal_2" : "l_carpal_middle_phalanx_2",
+"l_carpal_distal_interphalangeal_2" : "l_carpal_distal_phalanx_2",
+"l_midcarpal_3" : "l_capitate",
+"l_carpometacarpal_3" : "l_metacarpal_3",
+"l_metacarpophalangeal_3" : "l_carpal_proximal_phalanx_3",
+"l_carpal_proximal_interphalangeal_3" : "l_carpal_middle_phalanx_3",
+"l_carpal_distal_interphalangeal_3" : "l_carpal_distal_phalanx_3",
+"l_midcarpal_4_5" : "l_hamate",
+"l_carpometacarpal_4" : "l_metacarpal_4",
+"l_metacarpophalangeal_4" : "l_carpal_proximal_phalanx_4",
+"l_carpal_proximal_interphalangeal_4" : "l_carpal_middle_phalanx_4",
+"l_carpal_distal_interphalangeal_4" : "l_carpal_distal_phalanx_4",
+"l_carpometacarpal_5" : "l_metacarpal_5",
+"l_metacarpophalangeal_5" : "l_carpal_proximal_phalanx_5",
+"l_carpal_proximal_interphalangeal_5" : "l_carpal_middle_phalanx_5",
+"l_carpal_distal_interphalangeal_5" : "l_carpal_distal_phalanx_5",
+"r_sternoclavicular" : "r_clavicle",
+"r_acromioclavicular" : "r_scapula",
+"r_shoulder" : "r_upperarm",
+"r_elbow" : "r_forearm",
+"r_radiocarpal" : "r_carpal",
+"r_midcarpal_1" : "r_trapezium",
+"r_carpometacarpal_1" : "r_metacarpal_1",
+"r_metacarpophalangeal_1" : "r_carpal_proximal_phalanx_1",
+"r_carpal_interphalangeal_1" : "r_carpal_distal_phalanx_1",
+"r_midcarpal_2" : "r_trapezoid",
+"r_carpometacarpal_2" : "r_metacarpal_2",
+"r_metacarpophalangeal_2" : "r_carpal_proximal_phalanx_2",
+"r_carpal_proximal_interphalangeal_2" : "r_carpal_middle_phalanx_2",
+"r_carpal_distal_interphalangeal_2" : "r_carpal_distal_phalanx_2",
+"r_midcarpal_3" : "r_capitate",
+"r_carpometacarpal_3" : "r_metacarpal_3",
+"r_metacarpophalangeal_3" : "r_carpal_proximal_phalanx_3",
+"r_carpal_proximal_interphalangeal_3" : "r_carpal_middle_phalanx_3",
+"r_carpal_distal_interphalangeal_3" : "r_carpal_distal_phalanx_3",
+"r_midcarpal_4_5" : "r_hamate",
+"r_carpometacarpal_4" : "r_metacarpal_4",
+"r_metacarpophalangeal_4" : "r_carpal_proximal_phalanx_4",
+"r_carpal_proximal_interphalangeal_4" : "r_carpal_middle_phalanx_4",
+"r_carpal_distal_interphalangeal_4" : "r_carpal_distal_phalanx_4",
+"r_carpometacarpal_5" : "r_metacarpal_5",
+"r_metacarpophalangeal_5" : "r_carpal_proximal_phalanx_5",
+"r_carpal_proximal_interphalangeal_5" : "r_carpal_middle_phalanx_5",
+"r_carpal_distal_interphalangeal_5" : "r_carpal_distal_phalanx_5",
+}
 
 # h3d defines
 H3D_TOP_LEVEL = 'TOP_LEVEL_TI'
 H3D_CAMERA_FOLLOW = 'CAMERA_FOLLOW_TRANSFORM'
 H3D_VIEW_MATRIX = 'view_matrix'
+
+HANIM_DEF_PREFIX = 'hanim_'
 
 
 def clamp_color(col):
@@ -255,6 +408,7 @@ def export(context, x3dv_export_settings):
         CA_ = 'CA_'
         OB_ = 'OB_'
         ME_ = 'ME_'
+        SH_ = 'SH_'
         IM_ = 'IM_'
         WO_ = 'WO_'
         MA_ = 'MA_'
@@ -276,6 +430,7 @@ def export(context, x3dv_export_settings):
         CA_ = ''
         OB_ = ''
         ME_ = ''
+        SH_ = ''
         IM_ = ''
         WO_ = ''
         MA_ = ''
@@ -312,6 +467,7 @@ def export(context, x3dv_export_settings):
         copyright = export_settings['x3dv_copyright']
         hd = head()
         hd.children=[
+          component(name='HAnim', level=3),
           meta(content=filepath,name='filename'),
           meta(content=copyright,name='copyright'),
           meta(content='http://www.web3D.org',name='reference'),
@@ -366,7 +522,7 @@ def export(context, x3dv_export_settings):
     def b2xNavigationInfo(has_light):
         ni = NavigationInfo()
         ni.headlight = has_light
-        ni.visibilityLimit = 0.0;
+        ni.visibilityLimit = 0.0
         # default ni.type = ["EXAMINE", "ANY"]
         # default ni.avatarSize = [0.25, 1.6, 0.75]
         return ni
@@ -470,6 +626,303 @@ def export(context, x3dv_export_settings):
         
         return lite
 
+    def b2xHAnimNode(obj, matrix, def_id, tag, segment_name=None, skinCoordIndex=None, skinCoordWeight=None, motions=None):
+        if matrix is not None:
+            loc, rot, sca = matrix.decompose()
+            rot = rot.to_axis_angle()
+            rot = (*rot[0], rot[1])
+            center = obj.location
+
+        match tag:
+              case     "HAnimJoint":
+                  print(f"Exporting bone/{tag} {obj.name}")
+                  if segment_name is None:
+                      node = HAnimJoint(
+                         translation=loc[:],
+                         rotation=rot,
+                         center=center[:]
+                         )
+                      if skinCoordIndex is not None:
+                         node.skinCoordIndex = skinCoordIndex
+                      if skinCoordWeight is not None:
+                         node.skinCoordWeight = skinCoordWeight
+                  else:
+                      node = HAnimJoint(
+                         translation=loc[:],
+                         center=center[:],
+                         rotation=rot,
+                         children=[
+                            HAnimSegment(DEF=HANIM_DEF_PREFIX+segment_name, name=segment_name, children=[
+                                HAnimSite(DEF=HANIM_DEF_PREFIX+segment_name+"_pt", name=segment_name+"_pt", # translation=loc[:],
+                                    children=[
+                                    Transform( children=[
+                                        Shape(
+                                            appearance=Appearance(material=Material(diffuseColor = (0, 0, 1))),
+                                            geometry=Box(size = (0.05, 0.05, 0.05))
+                                        )
+                                    ])
+                                ])
+                            ])
+                         ])
+                      if skinCoordIndex is not None:
+                         node.skinCoordIndex = skinCoordIndex
+                      if skinCoordWeight is not None:
+                         node.skinCoordWeight = skinCoordWeight
+                  if def_id:
+                      node.DEF=HANIM_DEF_PREFIX+def_id
+                  if obj.name:
+                      node.name=obj.name
+                  return node
+              case     "HAnimSegment":
+                  print(f"Exporting type {tag} {obj.type}")
+                  node = HAnimSegment()
+                  if def_id:
+                      node.DEF=HANIM_DEF_PREFIX+def_id
+                  if obj.name:
+                      node.name=obj.name
+                  return node
+              case     "HAnimSite":
+                  print(f"Exporting type {tag} {obj.type}")
+                  node = HAnimSite()
+                  if def_id:
+                      node.DEF=HANIM_DEF_PREFIX+def_id
+                  if obj.name:
+                      node.name=obj.name
+                  return node
+              case     "HAnimHumanoid":
+                  print(f"Exporting type {tag} {obj.type}")
+                                        
+                  node = HAnimHumanoid(motionsEnabled=MFBool([random.choice([True]) for i in range(len(motions))]),
+                                       motions=motions)
+                  if def_id:
+                      node.DEF=HANIM_DEF_PREFIX+def_id
+                  if obj.name:
+                      node.name=def_id #obj.name is humanoid root, don't reuse
+                  return node
+              case     "HAnimMotion":
+                  print(f"Exporting motion of {tag} {obj.type}")
+                  if obj.type == 'ARMATURE':
+                      armature = obj
+                      bpy.context.view_layer.objects.active = armature
+                      bpy.ops.object.mode_set(mode='POSE')
+                      print(f"Activated armature {armature}")
+                      if armature:
+                            animation_data = armature.animation_data
+                            if animation_data:
+                                print(f"Exporting animation data")
+                                action = animation_data.action
+                                if action:
+                                    print(f"Exporting action")
+                                    values = []
+                                    # numframes = range(int(action.frame_range.x), int(action.frame_range.y) + 1)
+                                    for frame in range(int(action.frame_range.x), int(action.frame_range.y) + 1):
+                                        # frame is frame number
+                                        bpy.context.scene.frame_set(frame)
+                                        print(f"Exporting frame {frame}")
+                                        for bone in armature.pose.bones:
+                                            values.append(bone.location[0]) # location
+                                            values.append(bone.location[1]) # location
+                                            values.append(bone.location[2]) # location
+                                            values.append(bone.rotation_euler[0]) # rotation_euler
+                                            values.append(bone.rotation_euler[1]) # rotation_euler
+                                            values.append(bone.rotation_euler[2]) # rotation_euler
+                                            # values.append(bone.scale[0]) # scale
+                                            # values.append(bone.scale[1]) # scale
+                                            # values.append(bone.scale[2]) # scale
+                                    numbones = len(armature.pose.bones)
+
+                                    node = HAnimMotion(
+                                        #frameIncrement=1,
+                                        #frameIndex=0,
+                                        loop=True,
+                                        #frameDuration=0.033333,
+                                        enabled=True,
+                                        channelsEnabled=MFBool([random.choice([True]) for i in range(numbones * 6)]),
+                                        channels="6 Xposition Yposition Zposition Xrotation Yrotation Zrotation " * numbones,
+                                        joints=" ".join(HANIM_DEF_PREFIX+bone.name for bone in armature.pose.bones),
+                                        values=MFFloat(values)
+                                        )
+                                    return node
+                                else:
+                                    print("No animation data associated with the armature.")
+                            else:
+                                print("No animation data found for the armature.")
+                      else:
+                          print("No armature found in the scene.")
+                  else:
+                      print("Object is not an armature.")
+                  node = HAnimMotion()  # fake motion
+                  return node
+
+    def b2xJoint(joint_parent, joint, matrix, joint_lookup, segment_lookup, armature, skinCoordInfo):
+        matrix_fallback = mathutils.Matrix()
+        world = scene.world
+        if export_settings['x3dv_use_hierarchy']:
+            try:
+                joint_matrix_world = joint.matrix
+            except AttributeError:
+                joint_matrix_world = matrix
+            try:
+                if joint_parent:
+                    joint_matrix = joint_parent.matrix.inverted(matrix_fallback) @ joint_matrix_world
+                else:
+                    joint_matrix = joint_matrix_world
+            except AttributeError:
+                joint_matrix = joint_matrix_world
+            joint_matrix_world_invert = joint_matrix_world.inverted(matrix_fallback)
+
+            try:
+                if skinCoordInfo[joint.name] is None:
+                    skinCoordWeight = []
+                    skinCoordIndex = []
+                else:
+                    skinCoordIndex = skinCoordInfo[joint.name]['indices']
+                    skinCoordWeight = skinCoordInfo[joint.name]['weights']
+            except:
+                    skinCoordWeight = []
+                    skinCoordIndex = []
+#            for obj in bpy.data.objects:
+#                if obj.type == 'MESH':
+#                    if obj.parent == armature:
+#                        vertex_groups = obj.vertex_groups
+#                        skinCoordIndex = []
+#                        for vertex in obj.data.vertices:
+#                            skinCoordWeight = []
+#                            for group in vertex.groups:
+#                                #print("Mesh", vertex_groups)
+#                                # print("groups", vertex.groups)
+#                                if group.group >= 0  and group.group < len(vertex_groups) and vertex_groups[group.group].name == joint.name:
+#                                    skinCoordIndex.append(vertex.index)
+#                                    skinCoordWeight.append(group.weight)
+        
+            # joint_id = quoteattr(unique_name(joint, joint.name, uuid_cache_skeleton, clean_func=clean_def, sep="_"))
+            if not joint.name.endswith("_end"):  # exclude sites for now
+                try:
+                    segment_name = segment_lookup[joint.name]
+                except KeyError:
+                    segment_name = None
+                node = b2xHAnimNode(joint, matrix, joint.name, "HAnimJoint", segment_name=segment_name, skinCoordIndex=skinCoordIndex, skinCoordWeight=skinCoordWeight)
+
+                print(f"Info: Exporting joint {joint.name}")
+                for joint_child in joint_lookup[joint.name]['joint_children']:
+                    child = b2xJoint(joint, joint_child.joint, joint_matrix, joint_lookup, segment_lookup, armature, skinCoordInfo)
+                    node.children.append(child)
+                return node
+            else:
+                site_name = joint.name
+                return HAnimJoint(
+                         children=[
+                            HAnimSegment(DEF=HANIM_DEF_PREFIX+"SEGMENT_FOR_"+site_name, name="SEGMENT_FOR_"+site_name, children=[
+                                HAnimSite(DEF=HANIM_DEF_PREFIX+site_name, name=site_name, children=[
+                                    Transform( children=[
+                                        Shape(
+                                            appearance=Appearance(material=Material(diffuseColor = (0, 0, 1))),
+                                            geometry=Box(size = (0.05, 0.05, 0.05))
+                                        )
+                                    ])
+                                ])
+                            ])
+                         ])
+
+
+    class HAnimNode:
+        def __init__(self, name, parent_name, joint, joint_lookup):
+            self.name = name
+            self.parent_name = parent_name
+            self.joint = joint
+            joint_lookup[joint.name] = {}
+            joint_lookup[joint.name]['joint'] = joint
+            joint_lookup[joint.name]['joint_children'] = []
+            if parent_name:
+                try:
+                    joint_lookup[parent_name]['joint_children'].append(self)
+                except:
+                    joint_lookup[parent_name]['joint_children'].append(self)
+
+
+    def b2xFindCoordinate(x3dnode):
+        defList = []
+        children = None
+        if (isinstance(x3dnode, Group)):
+            children = x3dnode.children
+        elif (isinstance(x3dnode, Transform)):
+            children = x3dnode.children
+        elif (isinstance(x3dnode, Shape)):
+            children = [x3dnode.geometry]
+        elif (isinstance(x3dnode, IndexedFaceSet)):
+            children = [x3dnode.coord]
+        elif (isinstance(x3dnode, Coordinate)):
+            if x3dnode.DEF is not None:
+                defList.append(x3dnode.DEF)
+            else:
+                defList.append(x3dnode.name)
+        if children is not None:
+            for child in children:
+                defList = defList + b2xFindCoordinate(child) 
+        return defList
+
+    def b2xArmature(obj, obj_main, obj_children, obj_matrix, data, world):
+        armature = obj
+        armature_matrix = obj_matrix
+        print(f"Info: Called b2xArmature, exporting {armature.name}, object type {armature.type}")
+        segment_lookup = JointsSegments
+
+        # each armature needs their own hierarchy
+        joint_lookup = {}
+        #bpy.context.view_layer.objects.active = armature
+        #bpy.ops.object.mode_set(mode='POSE')  # could be 'POSE' or 'OBJECT'
+        #armature_id = quoteattr(HANIM_DEF_PREFIX+armature.parent.name)
+        motions = [b2xHAnimNode(armature, armature_matrix, "motions_"+armature.name, "HAnimMotion")]
+        humanoid = b2xHAnimNode(armature, armature_matrix, "armature_"+armature.name, "HAnimHumanoid", motions=motions)
+        HAnimNode(armature.name, None, armature, joint_lookup)  # populates joint_lookup
+        for joint in armature.pose.bones:
+            if joint.parent:
+                joint_parent_name = joint.parent.name
+            else:
+                joint_parent_name = armature.name
+            HAnimNode(joint.name, joint_parent_name, joint, joint_lookup) # populates joint_lookup
+
+        # BEGINNNING
+        # get the names of the bones in the armature associated with the object
+        #for modifier in obj.modifiers:
+            #if modifier.type == 'ARMATURE':
+                #armature = modifier.object.data
+        armature_bones = {bone.name for bone in armature.pose.bones}
+                #break
+            
+        # get the mapping from group indices to bones
+        skinCoordInfo = {}
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH':
+                if obj.parent == armature:
+                    group_to_bone = {i: group.name for i, group in enumerate(obj.vertex_groups)}
+        
+                    # determine the bone weights associated with each vertex
+                    mesh = obj.data
+                    for vertex in mesh.vertices: ##in each vertex of the mesh
+                        print('Vertex', vertex.index)
+                        for group in vertex.groups: #first loop to calculate the total weight and the space allowed if some are locked
+                            group_index = group.group
+                            group_bone = group_to_bone[group_index]
+                            if group_bone in armature_bones: ##if it's a bone
+                                print('\t', group_bone, group.weight)
+                                try:
+                                    if skinCoordInfo[group_bone] is None:
+                                        skinCoordInfo = {**skinCoordInfo, group_bone : { 'indices' : [], 'weights': []}}
+                                except:
+                                        skinCoordInfo = {**skinCoordInfo, group_bone : { 'indices' : [], 'weights': []}}
+                                skinCoordInfo[group_bone]['indices'].append(vertex.index)
+                                    
+                                skinCoordInfo[group_bone]['weights'].append(group.weight)
+                            else:
+                                print('\t', 'NOT A BONE:', group_bone, group.weight)
+        humanoid.skeleton = [b2xJoint(obj_main, armature, obj_matrix, joint_lookup, segment_lookup, armature, skinCoordInfo)]
+        # joints should be printed after skeleton in x3d.py. That's why I've picked out skeleton in x3d.py
+        for joint in armature.pose.bones:
+            if not joint.name.endswith("_end"):  # exclude sites for now
+                node = HAnimJoint(USE=HANIM_DEF_PREFIX+joint.name)
+                humanoid.joints.append(node)
+        return humanoid
 
     def b2xIndexedFaceSet(obj, mesh, mesh_name, matrix, world):
         obj_id = unique_name(obj, OB_ + obj.name, uuid_cache_object, clean_func=clean_def, sep="_")
@@ -598,7 +1051,8 @@ def export(context, x3dv_export_settings):
             for (material_index, image), polygons_group in polygons_groups.items():
                 if polygons_group:
                     material = mesh_materials[material_index]
-                    shape = Shape()
+                    shape_id = unique_name(mesh, SH_ + mesh_name, uuid_cache_mesh, clean_func=clean_def, sep="_")
+                    shape = Shape(DEF=shape_id)
                     bottom.children.append(shape)
 
                     is_smooth = False
@@ -1378,6 +1832,7 @@ def export(context, x3dv_export_settings):
             # H3D - use for writing a dummy transform parent
             is_dummy_tx = False
             node = None
+            children_processed = False
             if obj_type == 'CAMERA':
                 node = b2xViewpoint(obj, obj_matrix)
 
@@ -1438,6 +1893,19 @@ def export(context, x3dv_export_settings):
                     node = b2xDirectionalLight( obj, obj_matrix, data, world)
                 else:
                     node = b2xDirectionalLight( obj, obj_matrix, data, world)
+            elif obj_type == 'ARMATURE':
+                data = obj.data
+                node = b2xArmature(obj, obj_main, obj_children, obj_matrix, data, world)
+                for obj_child, obj_child_children in obj_children:
+                    x3dnodelist = b2x_object(obj_main, obj_child, obj_child_children)
+                    if x3dnodelist:
+                        for x3dnode in x3dnodelist:
+                            node.skin.append(x3dnode)
+                            for coord in b2xFindCoordinate(x3dnode):
+                                if node.skinCoord is not None:
+                                    print(f"*********************WARNING, overwriting skinCoord USE {node.skinCoord.USE}")
+                                node.skinCoord = Coordinate(USE=coord) # choose the last one I guess, but warn above
+                children_processed = True
             else:
                 print("Info: Ignoring [%s], object type [%s] not handle yet" % (obj.name,obj_type))
                 pass
@@ -1447,11 +1915,12 @@ def export(context, x3dv_export_settings):
         # ---------------------------------------------------------------------
         # write out children recursively
         # ---------------------------------------------------------------------
-        for obj_child, obj_child_children in obj_children:
-            x3dnodelist = b2x_object(obj_main, obj_child, obj_child_children)
-            if x3dnodelist:
-                for x3dnode in x3dnodelist:
-                    bottom.children.append(x3dnode)
+        if not children_processed:
+            for obj_child, obj_child_children in obj_children:
+                x3dnodelist = b2x_object(obj_main, obj_child, obj_child_children)
+                if x3dnodelist:
+                    for x3dnode in x3dnodelist:
+                        bottom.children.append(x3dnode)
         if is_dummy_tx:
             is_dummy_tx = False
 

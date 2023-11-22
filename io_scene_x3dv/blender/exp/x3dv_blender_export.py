@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0)
 # Copyright 2023 The x3dv-Blender-IO authors.
 # Contributors: bart:neeneenee*de, http://www.neeneenee.de/vrml, Campbell Barton
 """
@@ -26,7 +26,15 @@ import os
 import mathutils
 import random
 
+from .export_bvh import write_animation
+from .export_interpolators import write_interpolators
+
 from bpy_extras.io_utils import create_derived_objects
+
+from .RoundArray import round_array, round_array_no_unit_scale
+from .GetSceneScale import getscenescale
+
+from .swap_USEbeforeDEF import swap_USEbeforeDEF, USEdict, DEFdict, USEbeforeDEFdict
 
 JointsSegments = {
 "humanoid_root" : "sacrum",
@@ -185,7 +193,6 @@ H3D_CAMERA_FOLLOW = 'CAMERA_FOLLOW_TRANSFORM'
 H3D_VIEW_MATRIX = 'view_matrix'
 
 HANIM_DEF_PREFIX = 'hanim_'
-
 
 def clamp_color(col):
     return tuple([max(min(c, 1.0), 0.0) for c in col])
@@ -377,6 +384,7 @@ def export(context, x3dv_export_settings):
            use_h3d=False,
            path_mode='AUTO',
            name_decorations=True,
+           round_precision=16
            ):
     """
     export_settings = x3dv_export_settings
@@ -405,6 +413,7 @@ def export(context, x3dv_export_settings):
         uuid_cache_material = {}  # material
         uuid_cache_image = {}     # image
         uuid_cache_world = {}     # world
+        uuid_defs = {}            # defs
         CA_ = 'CA_'
         OB_ = 'OB_'
         ME_ = 'ME_'
@@ -426,6 +435,7 @@ def export(context, x3dv_export_settings):
         uuid_cache_material = uuid_cache         # material
         uuid_cache_image = uuid_cache            # image
         uuid_cache_world = uuid_cache            # world
+        uuid_defs = uuid_cache                   # defs
         del uuid_cache
         CA_ = ''
         OB_ = ''
@@ -438,6 +448,24 @@ def export(context, x3dv_export_settings):
         group_ = ''
 
     _TRANSFORM = '_TRANSFORM'
+
+    def name_used(DEF):
+        if DEF in uuid_defs.keys():
+            uuid_defs[DEF] = uuid_defs[DEF] + 1
+            return True
+        else:
+            uuid_defs.update({DEF: 1})
+            return False
+
+    def setUSEDEF(prefix, name, node):
+        if name is None:
+            name = ""
+        else:
+            node.name = name
+        if name_used(prefix+name):
+            node.USE = prefix+name
+        else:
+            node.DEF = prefix+name
 
     # store files to copy
     copy_set = set()
@@ -466,8 +494,11 @@ def export(context, x3dv_export_settings):
         blender_ver = 'Blender %s' % bpy.app.version_string
         copyright = export_settings['x3dv_copyright']
         hd = head()
+
+    
         hd.children=[
           component(name='HAnim', level=3),
+          unit(category='length', conversionFactor=getscenescale(bpy.context.scene), name=scene.unit_settings.length_unit),
           meta(content=filepath,name='filename'),
           meta(content=copyright,name='copyright'),
           meta(content='http://www.web3D.org',name='reference'),
@@ -536,9 +567,9 @@ def export(context, x3dv_export_settings):
         trans = Transform()
         if def_id is not None:
             trans.DEF = def_id
-        trans.translation = (loc[:])
-        trans.scale = (sca[:])
-        trans.rotation = rot
+        trans.translation = round_array(loc[:])
+        trans.scale = round_array_no_unit_scale(sca[:])
+        trans.rotation = round_array_no_unit_scale(rot)
         return trans
 
 
@@ -554,6 +585,7 @@ def export(context, x3dv_export_settings):
             amb_intensity = 0.0
 
         # compute cutoff and beamwidth
+        lamp = obj.data  # added by John
         intensity = min(lamp.energy / 1.75, 1.0)
         beamWidth = lamp.spot_size * 0.37
         # beamWidth=((lamp.spotSize*math.pi)/180.0)*.37
@@ -626,161 +658,333 @@ def export(context, x3dv_export_settings):
         
         return lite
 
-    def b2xHAnimNode(obj, matrix, def_id, tag, segment_name=None, skinCoordIndex=None, skinCoordWeight=None, motions=None):
-        if matrix is not None:
-            loc, rot, sca = matrix.decompose()
-            rot = rot.to_axis_angle()
-            rot = (*rot[0], rot[1])
-            center = obj.location
+    def b2xHAnimNode(obj, matrix, name, tag, segment_name=None, skinCoordIndex=None, skinCoordWeight=None, motions=None):
 
         match tag:
               case     "HAnimJoint":
-                  print(f"Exporting bone/{tag} {obj.name}")
+                  print(f"Exporting joint {tag} {obj.name}")
+                  try:
+                      #obj_matrix = obj.matrix_local
+                      #if obj_matrix is not None:
+                      #    loc, rot, sca = obj_matrix.decompose()
+                      #    rot = rot.to_axis_angle()
+                      #    rot = (*rot[0], rot[1])
+                      #center = matrix.to_translation()[:]
+                      center = obj.head_local
+                      chicenter = obj.tail_local
+                  except AttributeError:
+                      center = [0, 0, 0]
+                      chicenter = [0, 0, 0]
+                  # eul = mathutils.Euler((math.radians(90.0), 0.0, 0.0), 'XZY')
+                  # eul2 = mathutils.Euler((0.0, 0.0, math.radians(180.0)), 'XZY')
+
+                  vec = mathutils.Vector((center[0], center[1], center[2]))  # in Blender space
+                  #vec.rotate(eul)
+                  # vec.rotate(eul2)
+                  center = round_array(vec)  # in X3D space
+
+                  chivec = mathutils.Vector((chicenter[0], chicenter[1], chicenter[2]))  # in Blender space
+                  #chivec.rotate(eul)
+                  chicenter = round_array(chivec)  # in X3D space
+                  print(f"center {center[:]}")
                   if segment_name is None:
                       node = HAnimJoint(
-                         translation=loc[:],
-                         rotation=rot,
+                         #translation=loc[:],
+                         #rotation=rot,
+                         #scale=sca[:],
                          center=center[:]
                          )
                       if skinCoordIndex is not None:
                          node.skinCoordIndex = skinCoordIndex
                       if skinCoordWeight is not None:
-                         node.skinCoordWeight = skinCoordWeight
+                         node.skinCoordWeight = round_array_no_unit_scale(skinCoordWeight)
                   else:
-                      node = HAnimJoint(
-                         translation=loc[:],
-                         center=center[:],
-                         rotation=rot,
-                         children=[
-                            HAnimSegment(DEF=HANIM_DEF_PREFIX+segment_name, name=segment_name, children=[
-                                HAnimSite(DEF=HANIM_DEF_PREFIX+segment_name+"_pt", name=segment_name+"_pt", # translation=loc[:],
+                      site = HAnimSite(# translation=loc[:],
+                                children=[
+                                Transform(
+                                    translation=center[:],
                                     children=[
-                                    Transform( children=[
-                                        Shape(
-                                            appearance=Appearance(material=Material(diffuseColor = (0, 0, 1))),
-                                            geometry=Box(size = (0.05, 0.05, 0.05))
-                                        )
-                                    ])
+                                    Shape(
+                                        USE="SiteShape"
+                                        #appearance=Appearance(material=Material(diffuseColor = (0, 0, 1))),
+                                        #geometry=Box(size = (0.05, 0.05, 0.05))
+                                    )
                                 ])
                             ])
+                      setUSEDEF(HANIM_DEF_PREFIX, segment_name+"_tip", site)
+                      segment = HAnimSegment(children=[
+                          TouchSensor(description=f"joint {obj.name} segment {segment_name}"),
+                          Transform(translation=center[:],
+                              children=[
+                                  Shape(
+                                      USE="JointShape"
+                                  )
+                              ]),
+                            #Shape(appearance=Appearance(lineProperties=LineProperties(linewidthScaleFactor=5)),
+                            #      geometry=LineSet(
+                            #        vertexCount=2,
+                            #        coord=Coordinate(point=[center[:],chicenter[:]]),
+                            #        color=ColorRGBA(USE='SegmentLineColor')
+                            #      )),
+                            site
+                        ])
+                      setUSEDEF(HANIM_DEF_PREFIX, segment_name, segment)
+                      node = HAnimJoint(
+                         #translation=loc[:],
+                         #rotation=rot,
+                         #scale=sca[:],
+                         center=center[:],
+                         children=[
+                             segment
                          ])
                       if skinCoordIndex is not None:
                          node.skinCoordIndex = skinCoordIndex
                       if skinCoordWeight is not None:
-                         node.skinCoordWeight = skinCoordWeight
-                  if def_id:
-                      node.DEF=HANIM_DEF_PREFIX+def_id
-                  if obj.name:
-                      node.name=obj.name
+                         node.skinCoordWeight = round_array_no_unit_scale(skinCoordWeight)
+                  setUSEDEF(HANIM_DEF_PREFIX, name, node)
                   return node
               case     "HAnimSegment":
                   print(f"Exporting type {tag} {obj.type}")
                   node = HAnimSegment()
-                  if def_id:
-                      node.DEF=HANIM_DEF_PREFIX+def_id
-                  if obj.name:
-                      node.name=obj.name
+                  setUSEDEF(HANIM_DEF_PREFIX, name, node)
                   return node
               case     "HAnimSite":
                   print(f"Exporting type {tag} {obj.type}")
                   node = HAnimSite()
-                  if def_id:
-                      node.DEF=HANIM_DEF_PREFIX+def_id
-                  if obj.name:
-                      node.name=obj.name
+                  setUSEDEF(HANIM_DEF_PREFIX, name, node)
                   return node
               case     "HAnimHumanoid":
                   print(f"Exporting type {tag} {obj.type}")
-                                        
-                  node = HAnimHumanoid(motionsEnabled=MFBool([random.choice([True]) for i in range(len(motions))]),
-                                       motions=motions)
-                  if def_id:
-                      node.DEF=HANIM_DEF_PREFIX+def_id
-                  if obj.name:
-                      node.name=def_id #obj.name is humanoid root, don't reuse
+                  if motions and motions[0] is not None:
+                      print(f"{motions}")
+                      node = HAnimHumanoid( #motionsEnabled=MFBool([random.choice([True]) for i in range(len(motions))]),
+                                           motions=motions)
+                      setUSEDEF(HANIM_DEF_PREFIX, name, node)
+                  else:
+                      node = HAnimHumanoid()
+                      setUSEDEF(HANIM_DEF_PREFIX, name, node)
                   return node
-              case     "HAnimMotion":
-                  print(f"Exporting motion of {tag} {obj.type}")
+              case     "HAnimInterpolators":
+                  print(f"Exporting rest interpolators of {tag} {obj.type}")
+                  children = []
                   if obj.type == 'ARMATURE':
                       armature = obj
                       bpy.context.view_layer.objects.active = armature
                       bpy.ops.object.mode_set(mode='POSE')
-                      print(f"Activated armature {armature}")
-                      if armature:
-                            animation_data = armature.animation_data
-                            if animation_data:
-                                print(f"Exporting animation data")
-                                action = animation_data.action
-                                if action:
-                                    print(f"Exporting action")
-                                    values = []
-                                    # numframes = range(int(action.frame_range.x), int(action.frame_range.y) + 1)
-                                    for frame in range(int(action.frame_range.x), int(action.frame_range.y) + 1):
-                                        # frame is frame number
-                                        bpy.context.scene.frame_set(frame)
-                                        print(f"Exporting frame {frame}")
-                                        for bone in armature.pose.bones:
-                                            values.append(bone.location[0]) # location
-                                            values.append(bone.location[1]) # location
-                                            values.append(bone.location[2]) # location
-                                            values.append(bone.rotation_euler[0]) # rotation_euler
-                                            values.append(bone.rotation_euler[1]) # rotation_euler
-                                            values.append(bone.rotation_euler[2]) # rotation_euler
-                                            # values.append(bone.scale[0]) # scale
-                                            # values.append(bone.scale[1]) # scale
-                                            # values.append(bone.scale[2]) # scale
-                                    numbones = len(armature.pose.bones)
-
-                                    node = HAnimMotion(
-                                        #frameIncrement=1,
-                                        #frameIndex=0,
-                                        loop=True,
-                                        #frameDuration=0.033333,
-                                        enabled=True,
-                                        channelsEnabled=MFBool([random.choice([True]) for i in range(numbones * 6)]),
-                                        channels="6 Xposition Yposition Zposition Xrotation Yrotation Zrotation " * numbones,
-                                        joints=" ".join(HANIM_DEF_PREFIX+bone.name for bone in armature.pose.bones),
-                                        values=MFFloat(values)
-                                        )
-                                    return node
-                                else:
-                                    print("No animation data associated with the armature.")
-                            else:
-                                print("No animation data found for the armature.")
-                      else:
-                          print("No armature found in the scene.")
-                  else:
-                      print("Object is not an armature.")
-                  node = HAnimMotion()  # fake motion
-                  return node
+                      children = write_interpolators(obj, name, HANIM_DEF_PREFIX)
+                  return children
+#              case     "HAnimInterpolatorsOld":
+#                  print(f"Exporting interpolators of {tag} {obj.type}")
+#                  children = []
+#                  if obj.type == 'ARMATURE':
+#                      armature = obj
+#                      bpy.context.view_layer.objects.active = armature
+#                      bpy.ops.object.mode_set(mode='POSE')
+#                      print(f"Activated armature {armature} in pose mode")
+#                      if armature:
+#                            animation_data = armature.animation_data
+#                            if animation_data:
+#                                print(f"Exporting animation data")
+#                                action = animation_data.action
+#                                if action:
+#                                    numbones = len(armature.pose.bones)
+#                                    frame_range = action.frame_range
+#                                    time_sensor = TimeSensor(cycleInterval=(frame_range[1] - frame_range[0]), loop=True, enabled=True)
+#                                    clock_name = name+"_Clock"
+#                                    setUSEDEF(clock_name, None, time_sensor)
+#                                    activate_sensor = ProximitySensor(size=[ 1000000, 1000000, 1000000 ])
+#                                    activate_name = name+"_Close"
+#                                    setUSEDEF(activate_name, None, activate_sensor)
+#                                    activate_route = ROUTE(
+#                                            fromNode=activate_name,
+#                                            fromField="enterTime",
+#                                            toNode=clock_name,
+#                                            toField="startTime")
+#
+#                                    positionInterpolators = []
+#                                    orientationInterpolators = []
+#                                    positionRoutes = []
+#                                    orientationRoutes = []
+#                                    root_found = False
+#                                    for b in range(numbones):
+#                                        bone = armature.pose.bones[b]
+#                                        if bone.name == 'humanoid_root':
+#                                            posInterp = PositionInterpolator()
+#                                            setUSEDEF(name+"_PI_", bone.name, posInterp)
+#                                            positionInterpolators.append(posInterp)
+#                                            positionRoutes.append(ROUTE(
+#                                                fromNode=clock_name,
+#                                                fromField="fraction_changed",
+#                                                toNode=name+"_PI_"+bone.name,
+#                                                toField="set_fraction"))
+#                                            positionRoutes.append(ROUTE(
+#                                                fromNode=name+"_PI_"+bone.name,
+#                                                fromField="value_changed",
+#                                            toNode=HANIM_DEF_PREFIX+bone.name,
+#                                            toField="translation"))
+#                                            root_found = True
+#
+#                                        rotInterp = OrientationInterpolator()
+#                                        setUSEDEF(name+"_OI_", bone.name, rotInterp)
+#                                        orientationInterpolators.append(rotInterp)
+#                                        orientationRoutes.append(ROUTE(
+#                                            fromNode=clock_name,
+#                                            fromField="fraction_changed",
+#                                            toNode=name+"_OI_"+bone.name,
+#                                            toField="set_fraction"))
+#                                        orientationRoutes.append(ROUTE(
+#                                            fromNode=name+"_OI_"+bone.name,
+#                                            fromField="value_changed",
+#                                            toNode=HANIM_DEF_PREFIX+bone.name,
+#                                            toField="rotation"))
+#                                    if not root_found:
+#                                        print("humanoid_root not found in bone data")
+#                                    root_found = False
+#                                    lasttime = range(int(action.frame_range.x), int(action.frame_range.y) + 1)[-1]
+#                                    keyframe_length = (frame_range[1] - frame_range[0]) / bpy.context.scene.render.fps
+#                                    keyframe_time = 0
+#                                    for frame in range(int(action.frame_range.x), int(action.frame_range.y) + 1):
+#                                        # frame is frame number
+#                                        bpy.context.scene.frame_set(frame)
+#                                        print(f"Exporting interpolator frame {frame}")
+#                                        for b in range(numbones):
+#                                            bone = armature.pose.bones[b]
+#                                            bone.rotation_mode = 'AXIS_ANGLE'
+#                                            if bone.name == 'humanoid_root':
+#                                                positionInterpolators[b].key.append(round_array_no_unit_scale([keyframe_time])[:])
+#                                                loc = round_array(bone.location)
+#                                                positionInterpolators[b].keyValue.append(loc) # location
+#                                                root_found = True
+#                                            axa = round_array_no_unit_scale(bone.rotation_axis_angle)
+#                                            oldlen = len(orientationInterpolators[b].keyValue)
+#                                            if oldlen > 0:
+#                                                oldaxa = orientationInterpolators[b].keyValue[oldlen-1]
+#                                            else:
+#                                                oldaxa = None
+#                                            if frame == lasttime or oldaxa is None or (oldaxa[0] != axa[0] or oldaxa[1] != axa[1] or oldaxa[2] != axa[2] or oldaxa[3] != axa[3]):
+#                                                orientationInterpolators[b].key.append(round_array_no_unit_scale([keyframe_time])[:])
+#                                                orientationInterpolators[b].keyValue.append([axa[0], axa[1], axa[2], axa[3]]) # TODO SFRotation.x, y, z, w
+#                                        keyframe_time = keyframe_time + keyframe_length
+#                                    children.append(time_sensor)
+#                                    children.append(activate_sensor)
+#                                    children.append(activate_route)
+#                                    children.append(orientationInterpolators[:])
+#                                    children.append(orientationRoutes[:])
+#                                    if root_found:
+#                                        print("humanoid_root found in bone data")
+#                                        children.append(positionInterpolators[:])
+#                                        children.append(positionRoutes[:])
+#                                    else:
+#                                        print("humanoid_root not found in bone data")
+#                                    return children
+#                                else:
+#                                    print("No animation data associated with the armature.")
+#                            else:
+#                                print("No animation data found for the armature.")
+#                      else:
+#                          print("No armature found in the scene.")
+#                  else:
+#                      print("Object is not an armature.")
+#                  return children
+#              case     "HAnimMotion":
+#                  print(f"Exporting bvh of {tag} {obj.type}")
+#                  node = None
+#                  if obj.type == 'ARMATURE':
+#                      armature = obj
+#                      bpy.context.view_layer.objects.active = armature
+#                      bpy.ops.object.mode_set(mode='POSE')
+#                      node = write_animation(obj)
+#                  return node
+#              case     "HAnimMotionOld":
+#                  print(f"Exporting motion of {tag} {obj.type}")
+#                  if obj.type == 'ARMATURE':
+#                      armature = obj
+#                      bpy.context.view_layer.objects.active = armature
+#                      bpy.ops.object.mode_set(mode='POSE')
+#                      print(f"Activated armature {armature}")
+#                      if armature:
+#                            animation_data = armature.animation_data
+#                            if animation_data:
+#                                print(f"Exporting animation data")
+#                                action = animation_data.action
+#                                if action:
+#                                    print(f"Exporting action")
+#                                    values = []
+#                                    # numframes = range(int(action.frame_range.x), int(action.frame_range.y) + 1)
+#                                    root_found = False
+#                                    for frame in range(int(action.frame_range.x), int(action.frame_range.y) + 1):
+#                                        # frame is frame number
+#                                        bpy.context.scene.frame_set(frame)
+#                                        print(f"Exporting values frame {frame}")
+#                                        for bone in armature.pose.bones:
+#                                            bone.rotation_mode = 'XZY'
+#                                            if bone.name == 'humanoid_root':
+#                                                loc = round_array(bone.location)
+#                                                values.append(loc[0]) # location
+#                                                values.append(loc[1]) # location  reverse Y and Z for X3D
+#                                                values.append(loc[2]) # location  reverse Y and Z for X3D
+#                                                root_found = True
+#                                            eul = bone.rotation_euler
+#                                            rot = [ eul.x, eul.y, eul.z ]
+#                                            if bpy.context.scene.unit_settings.system_rotation == 'DEGREES':
+#                                                r = round_array_no_unit_scale([math.radians(rot[0]), math.radians(rot[1]),math.radians(rot[2])])
+#                                                values.append(r[0]) # rotation_euler
+#                                                values.append(r[1]) # rotation_euler
+#                                                values.append(r[2]) # rotation_euler
+#                                            else:
+#                                                r = round_array_no_unit_scale(rot)
+#                                                values.append(r[0]) # rotation_euler
+#                                                values.append(r[1]) # rotation_euler
+#                                                values.append(r[2]) # rotation_euler
+#                                            # values.append(bone.scale[0]) # scale
+#                                            # values.append(bone.scale[1]) # scale
+#                                            # values.append(bone.scale[2]) # scale
+#                                    numbones = len(armature.pose.bones)
+#                                    if root_found:
+#                                        print("humanoid_root found in bone data, adding position")
+#                                        channelsEnabled=MFBool([random.choice([True]) for i in range(numbones * 3 + 1)])
+#                                        channels="6 Xposition Yposition Zposition Xrotation Yrotation Zrotation "+("3 Xrotation Yrotation Zrotation " * (numbones - 1))
+#                                        joints=HANIM_DEF_PREFIX+"humanoid_root "+(" ".join(HANIM_DEF_PREFIX+bone.name for bone in armature.pose.bones if bone.name != "humanoid_root"))
+#                                    else:
+#                                        print("humanoid_root not found in bone data, not adding position")
+#                                        channelsEnabled=MFBool([random.choice([True]) for i in range(numbones * 3)])
+#                                        channels=("3 Xrotation Yrotation Zrotation " * (numbones - 1))
+#                                        joints=(" ".join(HANIM_DEF_PREFIX+bone.name for bone in armature.pose.bones))
+#                                    node = HAnimMotion(
+#                                        #frameIncrement=1,
+#                                        #frameIndex=0,
+#                                        loop=True,
+#                                        #frameDuration=0.033333,
+#                                        enabled=True,
+#                                        channels=channels,
+#                                        joints=joints,
+#                                        channelsEnabled=channelsEnabled,
+#                                        values=MFFloat(values)
+#                                        )
+#                                    return node
+#                                else:
+#                                    print("No animation data associated with the armature.")
+#                            else:
+#                                print("No animation data found for the armature.")
+#                      else:
+#                          print("No armature found in the scene.")
+#                  else:
+#                      print("Object is not an armature.")
+#                  node = HAnimMotion()  # fake motion
+#                  return node
 
     def b2xJoint(joint_parent, joint, matrix, joint_lookup, segment_lookup, armature, skinCoordInfo):
-        matrix_fallback = mathutils.Matrix()
-        world = scene.world
-        if export_settings['x3dv_use_hierarchy']:
-            try:
-                joint_matrix_world = joint.matrix
-            except AttributeError:
-                joint_matrix_world = matrix
-            try:
-                if joint_parent:
-                    joint_matrix = joint_parent.matrix.inverted(matrix_fallback) @ joint_matrix_world
-                else:
-                    joint_matrix = joint_matrix_world
-            except AttributeError:
-                joint_matrix = joint_matrix_world
-            joint_matrix_world_invert = joint_matrix_world.inverted(matrix_fallback)
-
-            try:
-                if skinCoordInfo[joint.name] is None:
-                    skinCoordWeight = []
-                    skinCoordIndex = []
-                else:
-                    skinCoordIndex = skinCoordInfo[joint.name]['indices']
-                    skinCoordWeight = skinCoordInfo[joint.name]['weights']
-            except:
-                    skinCoordWeight = []
-                    skinCoordIndex = []
+        # print(f"joint {joint}")
+        try:
+            if skinCoordInfo[joint.name] is None:
+                skinCoordWeight = []
+                skinCoordIndex = []
+            else:
+                skinCoordIndex = skinCoordInfo[joint.name]['indices']
+                skinCoordWeight = skinCoordInfo[joint.name]['weights']
+        except:
+                skinCoordWeight = []
+                skinCoordIndex = []
 #            for obj in bpy.data.objects:
 #                if obj.type == 'MESH':
 #                    if obj.parent == armature:
@@ -794,36 +998,34 @@ def export(context, x3dv_export_settings):
 #                                if group.group >= 0  and group.group < len(vertex_groups) and vertex_groups[group.group].name == joint.name:
 #                                    skinCoordIndex.append(vertex.index)
 #                                    skinCoordWeight.append(group.weight)
-        
-            # joint_id = quoteattr(unique_name(joint, joint.name, uuid_cache_skeleton, clean_func=clean_def, sep="_"))
-            if not joint.name.endswith("_end"):  # exclude sites for now
-                try:
-                    segment_name = segment_lookup[joint.name]
-                except KeyError:
-                    segment_name = None
-                node = b2xHAnimNode(joint, matrix, joint.name, "HAnimJoint", segment_name=segment_name, skinCoordIndex=skinCoordIndex, skinCoordWeight=skinCoordWeight)
+        # joint_id = quoteattr(unique_name(joint, joint.name, uuid_cache_skeleton, clean_func=clean_def, sep="_"))
+        if not joint.name.endswith("_end"):  # exclude sites for now
+            try:
+                segment_name = segment_lookup[joint.name]
+            except KeyError:
+                segment_name = None
+            node = b2xHAnimNode(joint, matrix, joint.name, "HAnimJoint", segment_name=segment_name, skinCoordIndex=skinCoordIndex, skinCoordWeight=skinCoordWeight)
 
-                print(f"Info: Exporting joint {joint.name}")
-                for joint_child in joint_lookup[joint.name]['joint_children']:
-                    child = b2xJoint(joint, joint_child.joint, joint_matrix, joint_lookup, segment_lookup, armature, skinCoordInfo)
-                    node.children.append(child)
-                return node
-            else:
-                site_name = joint.name
-                return HAnimJoint(
-                         children=[
-                            HAnimSegment(DEF=HANIM_DEF_PREFIX+"SEGMENT_FOR_"+site_name, name="SEGMENT_FOR_"+site_name, children=[
-                                HAnimSite(DEF=HANIM_DEF_PREFIX+site_name, name=site_name, children=[
-                                    Transform( children=[
-                                        Shape(
-                                            appearance=Appearance(material=Material(diffuseColor = (0, 0, 1))),
-                                            geometry=Box(size = (0.05, 0.05, 0.05))
-                                        )
-                                    ])
-                                ])
-                            ])
-                         ])
-
+            for joint_child in joint_lookup[joint.name]['joint_children']:
+                child = b2xJoint(joint, joint_child.joint, joint_child.joint.matrix, joint_lookup, segment_lookup, armature, skinCoordInfo)
+                node.children.append(child)
+            return node
+        else:
+            site_name = joint.name
+            site = HAnimSite(children=[
+                Transform( children=[
+                    Shape(
+                        USE="SiteShape"
+                        #appearance=Appearance(material=Material(diffuseColor = (0, 0, 1))),
+                        #geometry=Box(size = (0.05, 0.05, 0.05))
+                    )
+                ])
+            ])
+            setUSEDEF(HANIM_DEF_PREFIX, site_name, site)
+            segment = HAnimSegment(children=[ site ])
+            setUSEDEF(HANIM_DEF_PREFIX+"SEGMENT_FOR_", site_name, segment)
+            node = HAnimJoint( children=[ segment ]) # TODO maybe return site?
+            return node;
 
     class HAnimNode:
         def __init__(self, name, parent_name, joint, joint_lookup):
@@ -849,7 +1051,7 @@ def export(context, x3dv_export_settings):
             children = x3dnode.children
         elif (isinstance(x3dnode, Shape)):
             children = [x3dnode.geometry]
-        elif (isinstance(x3dnode, IndexedFaceSet)):
+        elif (isinstance(x3dnode, (IndexedFaceSet, IndexedLineSet, IndexedTriangleFanSet, IndexedTriangleSet, IndexedTriangleStripSet, PointSet, TriangleFanSet, TriangleSet, TriangleStripSet))):
             children = [x3dnode.coord]
         elif (isinstance(x3dnode, Coordinate)):
             if x3dnode.DEF is not None:
@@ -858,7 +1060,7 @@ def export(context, x3dv_export_settings):
                 defList.append(x3dnode.name)
         if children is not None:
             for child in children:
-                defList = defList + b2xFindCoordinate(child) 
+                defList = defList + b2xFindCoordinate(child)
         return defList
 
     def b2xArmature(obj, obj_main, obj_children, obj_matrix, data, world):
@@ -869,13 +1071,14 @@ def export(context, x3dv_export_settings):
 
         # each armature needs their own hierarchy
         joint_lookup = {}
-        #bpy.context.view_layer.objects.active = armature
-        #bpy.ops.object.mode_set(mode='POSE')  # could be 'POSE' or 'OBJECT'
+        bpy.context.view_layer.objects.active = armature
+        bpy.ops.object.mode_set(mode='OBJECT')
         #armature_id = quoteattr(HANIM_DEF_PREFIX+armature.parent.name)
-        motions = [b2xHAnimNode(armature, armature_matrix, "motions_"+armature.name, "HAnimMotion")]
-        humanoid = b2xHAnimNode(armature, armature_matrix, "armature_"+armature.name, "HAnimHumanoid", motions=motions)
+        # motions = [b2xHAnimNode(armature, armature_matrix, "motions", "HAnimMotion")]
+        motions = None
+        humanoid = b2xHAnimNode(armature, armature_matrix, "humanoid", "HAnimHumanoid", motions=motions)
         HAnimNode(armature.name, None, armature, joint_lookup)  # populates joint_lookup
-        for joint in armature.pose.bones:
+        for joint in armature.data.bones:
             if joint.parent:
                 joint_parent_name = joint.parent.name
             else:
@@ -887,9 +1090,122 @@ def export(context, x3dv_export_settings):
         #for modifier in obj.modifiers:
             #if modifier.type == 'ARMATURE':
                 #armature = modifier.object.data
-        armature_bones = {bone.name for bone in armature.pose.bones}
+            
+        armature_bones = {bone.name for bone in armature.data.bones}
                 #break
             
+        """
+        # get the mapping from group indices to bones
+        # TDOO onnly work on a one MESH file
+        # https://blenderartists.org/t/script-that-normalize-only-bones-weight-in-vertex-groups/557887
+        skinCoordInfo = {}
+
+        for obj in bpy.context.scene.objects:
+            if obj.type == 'MESH':
+                obj.select_set(True)
+                bpy.context.view_layer.objects.active = obj
+                bpy.ops.object.mode_set(mode='OBJECT') # ('OBJECT', 'EDIT', 'SCULPT', 'VERTEX_PAINT', 'WEIGHT_PAINT', 'TEXTURE_PAINT')
+
+
+        obj = bpy.context.active_object
+        mesh = bpy.data.objects[obj.name].data
+        mesh_name = bpy.data.objects[obj.name].data.name
+        listbones = {}
+        b=0
+
+
+        ## check the armature attached to the object
+        for modifiers in bpy.data.objects[obj.name].modifiers:
+            if modifiers.type == 'ARMATURE':
+                data = bpy.data.objects[modifiers.object.name].data.name
+                for bones in bpy.data.armatures[data].bones:
+                    #print(f"Listing bones {bones.name}")
+                    listbones[bones.name] = b
+                    b+=1
+
+
+        ## create the dict for the groups attache the index to the name
+        DictGroup = {} ##ask the index it will give you the name
+
+        i=0
+        for group in bpy.context.active_object.vertex_groups:
+            #print(f"Listing group {group.name}")
+            DictGroup[i]=group.name
+            i+=1
+
+        if bpy.context.mode == 'OBJECT':
+            for vertex in bpy.data.meshes[mesh_name].vertices: ##in each vertex of the mesh
+                total_weight=0 ##where to add the total of unlock
+                space_left=1 ##goal less the locked ones
+
+                for group in vertex.groups: #first loop to calculate the total weight and the space allowed if some are locked
+                    if DictGroup[group.group] in listbones: ##if it's a bone
+                        # group.weight
+                        # print("this is a bone " + str(DictGroup[group.group]))
+                        pass
+                    else:
+                        print("this is not a bone group " + str(DictGroup[group.group]))
+
+                for group in vertex.groups: #second on is to assign the new weight
+                    if DictGroup[group.group] in listbones:
+                        if not obj.vertex_groups[DictGroup[group.group]].lock_weight: ##if it's not locked!
+                            this_weight = group.weight
+                            # print(f"OBJECT bone {DictGroup[group.group]} index {vertex.index} weight {this_weight}")
+                            group_bone = DictGroup[group.group]
+                            try:
+                                if skinCoordInfo[group_bone] is None:
+                                    skinCoordInfo = {**skinCoordInfo, group_bone : { 'indices' : [], 'weights': []}}
+                            except:
+                                    skinCoordInfo = {**skinCoordInfo, group_bone : { 'indices' : [], 'weights': []}}
+                            skinCoordInfo[group_bone]['indices'].append(vertex.index)
+                            skinCoordInfo[group_bone]['weights'].append(this_weight)
+
+                            # obj.vertex_groups[DictGroup[group.group]].add([vertex.index],new_weight,'REPLACE')
+
+        if bpy.context.mode == 'EDIT_MESH':
+            myVertex = {}
+            v=0
+            bpy.ops.object.mode_set(mode='OBJECT')
+            for vertex in bpy.data.meshes[mesh_name].vertices:
+                if vertex.select==True:
+                    myVertex[v]=vertex.index
+                    v+=1
+
+            for each in myVertex:
+                for group in mesh.vertices[myVertex[each]].groups: #first loop to calculate the total weight and the space allowed if some are locked
+                    # print(group.weight)
+                    if DictGroup[group.group] in listbones: ##if it's a bone
+                        #print("this is a bone " + str(DictGroup[group.group]))
+                        pass
+                    else:
+                        print("this is not a bone group " + str(DictGroup[group.group]))
+
+                for group in mesh.vertices[myVertex[each]].groups: #second on is to assign the new weight
+                    if DictGroup[group.group] in listbones:
+                        if not obj.vertex_groups[DictGroup[group.group]].lock_weight: ##if it's not locked!
+                            this_weight = group.weight
+                            # print(f"EDIT MESH bone {DictGroup[group.group]} index {myVertex[each]} weight {this_weight}")
+                            group_bone = DictGroup[group.group]
+                            try:
+                                if skinCoordInfo[group_bone] is None:
+                                    skinCoordInfo = {**skinCoordInfo, group_bone : { 'indices' : [], 'weights': []}}
+                            except:
+                                    skinCoordInfo = {**skinCoordInfo, group_bone : { 'indices' : [], 'weights': []}}
+                            skinCoordInfo[group_bone]['indices'].append(vertex.index)
+                            skinCoordInfo[group_bone]['weights'].append(this_weight)
+
+        bpy.ops.object.mode_set(mode='EDIT')
+        for group_bone in skinCoordInfo:
+            try:
+                info = skinCoordInfo[group_bone]
+                print(f"\n<{group_bone}>\n")
+                indices = info['indices']
+                weights = info['weights']
+                for i in range(len(info['indices'])):
+                    print(f"({indices[i]}) = {weights[i]}")
+            except:
+                pass
+        """
         # get the mapping from group indices to bones
         skinCoordInfo = {}
         for obj in bpy.data.objects:
@@ -900,12 +1216,12 @@ def export(context, x3dv_export_settings):
                     # determine the bone weights associated with each vertex
                     mesh = obj.data
                     for vertex in mesh.vertices: ##in each vertex of the mesh
-                        print('Vertex', vertex.index)
+                        #print('Vertex', vertex.index)
                         for group in vertex.groups: #first loop to calculate the total weight and the space allowed if some are locked
                             group_index = group.group
                             group_bone = group_to_bone[group_index]
                             if group_bone in armature_bones: ##if it's a bone
-                                print('\t', group_bone, group.weight)
+                                #print('\t', group_bone, group.weight)
                                 try:
                                     if skinCoordInfo[group_bone] is None:
                                         skinCoordInfo = {**skinCoordInfo, group_bone : { 'indices' : [], 'weights': []}}
@@ -916,13 +1232,27 @@ def export(context, x3dv_export_settings):
                                 skinCoordInfo[group_bone]['weights'].append(group.weight)
                             else:
                                 print('\t', 'NOT A BONE:', group_bone, group.weight)
-        humanoid.skeleton = [b2xJoint(obj_main, armature, obj_matrix, joint_lookup, segment_lookup, armature, skinCoordInfo)]
+        humanoid.skeleton = [b2xJoint(obj_main, armature, armature_matrix, joint_lookup, segment_lookup, armature, skinCoordInfo)]
         # joints should be printed after skeleton in x3d.py. That's why I've picked out skeleton in x3d.py
-        for joint in armature.pose.bones:
+        for joint in armature.data.bones:
             if not joint.name.endswith("_end"):  # exclude sites for now
-                node = HAnimJoint(USE=HANIM_DEF_PREFIX+joint.name)
+                node = HAnimJoint()
+                setUSEDEF(HANIM_DEF_PREFIX+joint.name, None, node)
                 humanoid.joints.append(node)
+        scale = 1 # getscenescale(bpy.context.scene)
+        unit_settings = bpy.context.scene.unit_settings
+        length_unit = bpy.context.scene.unit_settings.length_unit 
+        print(f"scene scale is {scale} {unit_settings} {length_unit}")
         return humanoid
+
+    def image_get(mat):
+        from bpy_extras import node_shader_utils
+        if mat.use_nodes:
+            mat_wrap = node_shader_utils.PrincipledBSDFWrapper(mat)
+            base_color_tex = mat_wrap.base_color_texture
+            if base_color_tex and base_color_tex.image:
+                return base_color_tex.image
+        return None
 
     def b2xIndexedFaceSet(obj, mesh, mesh_name, matrix, world):
         obj_id = unique_name(obj, OB_ + obj.name, uuid_cache_object, clean_func=clean_def, sep="_")
@@ -982,7 +1312,7 @@ def export(context, x3dv_export_settings):
             mesh_material_images = [None] * len(mesh_materials)
 
             for i, material in enumerate(mesh_materials):
-                if 0 and material:
+                if material and 'texture_slots' in material:
                     for mtex in material.texture_slots:
                         if mtex:
                             tex = mtex.texture
@@ -993,6 +1323,8 @@ def export(context, x3dv_export_settings):
                                     mesh_material_mtex[i] = mtex
                                     mesh_material_images[i] = image
                                     break
+                elif material:
+                    mesh_material_images[0] = image_get(material)
 
             # fast access!
             mesh_vertices = mesh.vertices[:]
@@ -1088,30 +1420,34 @@ def export(context, x3dv_export_settings):
                     """
                     appr = Appearance()
                     shape.appearance = appr
+                    print(f" Image {image} use_h3d {use_h3d}")
                     if image and not use_h3d:
                         imt = b2xImageTexture( image)
-                        appr.imagetexture = imt
+                        appr.texture = imt
+                        print(f" Appearance {appr} texture {appr.texture} url {appr.texture.url}")
                         # transform by mtex
-                        loc = mesh_material_mtex[material_index].offset[:2]
+                        # TODO
+                        if 0:
+                            loc = mesh_material_mtex[material_index].offset[:2]
 
-                        # mtex_scale * tex_repeat
-                        sca_x, sca_y = mesh_material_mtex[material_index].scale[:2]
+                            # mtex_scale * tex_repeat
+                            sca_x, sca_y = mesh_material_mtex[material_index].scale[:2]
 
-                        sca_x *= mesh_material_tex[material_index].repeat_x
-                        sca_y *= mesh_material_tex[material_index].repeat_y
+                            sca_x *= mesh_material_tex[material_index].repeat_x
+                            sca_y *= mesh_material_tex[material_index].repeat_y
 
-                        # flip x/y is a sampling feature, convert to transform
-                        if mesh_material_tex[material_index].use_flip_axis:
-                            rot = math.pi / -2.0
-                            sca_x, sca_y = sca_y, -sca_x
-                        else:
-                            rot = 0.0
+                            # flip x/y is a sampling feature, convert to transform
+                            if mesh_material_tex[material_index].use_flip_axis:
+                                rot = math.pi / -2.0
+                                sca_x, sca_y = sca_y, -sca_x
+                            else:
+                                rot = 0.0
 
-                        tt = TextureTransform()
-                        tt.translation = loc
-                        tt.scale = (sca_x,sca_y)
-                        tt.rotation = rot
-                        appr.textureTransform = tt
+                            tt = TextureTransform()
+                            tt.translation = loc
+                            tt.scale = (sca_x,sca_y)
+                            tt.rotation = rot
+                            appr.textureTransform = tt
 
                     if use_h3d:
                         #mat_tmp = material if material else gpu_shader_dummy_mat
@@ -1217,7 +1553,7 @@ def export(context, x3dv_export_settings):
                        
                         for x3d_v in vert_tri_list:
                             #fw('%.6f %.6f %.6f ' % mesh_vertices[x3d_v[1]].co[:])
-                            coord.point.append((mesh_vertices[x3d_v[1]].co[:]))
+                            coord.point.append(round_array(mesh_vertices[x3d_v[1]].co[:]))
 
                         if export_settings['use_normals'] or is_force_normals:
                             norm = Normal()
@@ -1226,7 +1562,7 @@ def export(context, x3dv_export_settings):
                             #fw('vector="')
                             for x3d_v in vert_tri_list:
                                 #fw('%.6f %.6f %.6f ' % mesh_vertices[x3d_v[1]].normal[:])
-                                norm.vector.append(mesh_vertices[x3d_v[1]].normal[:])
+                                norm.vector.append(round_array_no_unit_scale(mesh_vertices[x3d_v[1]].normal[:]))
 
                         if is_uv:
                             texcoord = TextureCoordinate()
@@ -1234,7 +1570,7 @@ def export(context, x3dv_export_settings):
                             #fw('%s<TextureCoordinate point="' % ident)
                             for x3d_v in vert_tri_list:
                                 #fw('%.4f %.4f ' % x3d_v[0][slot_uv])
-                                texcoord.point.append(x3d_v[0][slot_uv])
+                                texcoord.point.append(round_array_no_unit_scale(x3d_v[0][slot_uv]))
 
 
                         if is_col:
@@ -1308,7 +1644,11 @@ def export(context, x3dv_export_settings):
                                 #fw('%s -1 ' % ' '.join((str(i) for i in poly_verts)))
                                 for i in poly_verts:
                                     ifs.coordIndex.append(i)
+                                    if export_settings['x3dv_normals']:
+                                        ifs.normalIndex.append(i)
                                 ifs.coordIndex.append(-1)
+                                if export_settings['x3dv_normals']:
+                                    ifs.normalIndex.append(-1)
                             # --- end coordIndex
 
 
@@ -1319,13 +1659,19 @@ def export(context, x3dv_export_settings):
                                 ifs.coord = coord
                                 if export_settings['x3dv_normals']:
                                     norms = Normal(USE = mesh_id_normals)
-                                    ifs.noraml = norms
+                                    ifs.normal = norms
                             else:
                                 coord = Coordinate(DEF = mesh_id_coords)
                                 ifs.coord = coord
                                 for v in mesh.vertices:
                                     #fw('%.6f %.6f %.6f ' % v.co[:])
-                                    ifs.coord.point.append(v.co[:])
+                                    #ifs.coord.point.append(v.co[:])
+                                    vco = [ None, None, None ]
+                                    vco[0] = v.co[0]
+                                    vco[1] = v.co[1]
+                                    vco[2] = v.co[2]
+                                    loc = round_array(vco)
+                                    ifs.coord.point.append(loc[:])
 
                                 is_coords_written = True
 
@@ -1335,15 +1681,17 @@ def export(context, x3dv_export_settings):
 
                                     for v in mesh.vertices:
                                         #fw('%.6f %.6f %.6f ' % v.normal[:])
-                                        ifs.normal.vector.append(v.normal[:])
+                                        ifs.normal.vector.append(round_array_no_unit_scale(v.normal[:]))
 
                         if is_uv:
                             texcoord = TextureCoordinate()
                             ifs.texCoord = texcoord
                             for i in polygons_group:
                                 for lidx in mesh_polygons[i].loop_indices:
-                                    #fw('%.4f %.4f ' % mesh_loops_uv[lidx].uv[:])
-                                    texcoord.point.append(mesh_loops_uv[lidx].uv[:])
+                                    # John patch
+                                    if len(mesh_loops_uv) > 0:
+                                        #fw('%.4f %.4f ' % mesh_loops_uv[lidx].uv[:])
+                                        texcoord.point.append(round_array_no_unit_scale(mesh_loops_uv[lidx].uv[:]))
 
                         if is_col:
                             # Need better logic here, dynamic determination
@@ -1695,10 +2043,13 @@ def export(context, x3dv_export_settings):
             imt = ImageTexture(USE=image_id)
         else:
             image.tag = True
+            print(f"Saving {image.filepath}")
+            image.save()
             imt = ImageTexture(DEF=image_id)
 
             # collect image paths, can load multiple
             # [relative, name-only, absolute]
+            path_mode='AUTO'
             filepath = image.filepath
             filepath_full = bpy.path.abspath(filepath, library=image.library)
             filepath_ref = bpy_extras.io_utils.path_reference(filepath_full, base_src, base_dst, path_mode, "textures", copy_set, image.library)
@@ -1714,8 +2065,8 @@ def export(context, x3dv_export_settings):
             images = [f.replace('\\', '/') for f in images]
             images = [f for i, f in enumerate(images) if f not in images[:i]]
 
-            #fw(ident_step + "url='%s'\n" % ' '.join(['"%s"' % escape(f) for f in images]))
-            imt.url = ['"%s"' % escape(f) for f in images]
+            #fw(ident_step + "url='%s'\n" % ' '.join(['%s' % escape(f) for f in images]))
+            imt.url = ['%s' % escape(f) for f in images]
             return imt
 
     def b2xBackground(world):
@@ -1796,7 +2147,7 @@ def export(context, x3dv_export_settings):
     # -------------------------------------------------------------------------
     # blender to x3d Object Hierarchy (recursively called)
     # -------------------------------------------------------------------------
-    def b2x_object(obj_main_parent, obj_main, obj_children):
+    def b2x_object(obj_main_parent, obj_main, obj_children, x3dmodel_scene):
         matrix_fallback = mathutils.Matrix()
         world = scene.world
         derived_dict = create_derived_objects(depsgraph, [obj_main])
@@ -1819,6 +2170,7 @@ def export(context, x3dv_export_settings):
             bottom = trans
         # Set here just incase we dont enter the loop below.
         is_dummy_tx = False
+        after = []
 
         for obj, obj_matrix in (() if derived is None else derived):
             obj_type = obj.type
@@ -1847,6 +2199,8 @@ def export(context, x3dv_export_settings):
                     is_dummy_tx = True
                     ident += '\t'
                """
+                if node != None:
+                    bottom.children.append(node)
 
             elif obj_type in {'MESH', 'CURVE', 'SURFACE', 'FONT'}:
                 if (obj_type != 'MESH') or (export_settings['x3dv_use_mesh_modifiers'] and obj.is_modified(scene, 'PREVIEW')):
@@ -1877,6 +2231,8 @@ def export(context, x3dv_export_settings):
                     # done
 
                     node = b2xIndexedFaceSet(obj, me, mesh_name, obj_matrix, world)
+                    if node != None:
+                        bottom.children.append(node)
                     # free mesh created with to_mesh()
                     if do_remove:
                         obj_for_mesh.to_mesh_clear()
@@ -1893,38 +2249,62 @@ def export(context, x3dv_export_settings):
                     node = b2xDirectionalLight( obj, obj_matrix, data, world)
                 else:
                     node = b2xDirectionalLight( obj, obj_matrix, data, world)
+                if node != None:
+                    bottom.children.append(node)
             elif obj_type == 'ARMATURE':
                 data = obj.data
                 node = b2xArmature(obj, obj_main, obj_children, obj_matrix, data, world)
+                prior_after = after
                 for obj_child, obj_child_children in obj_children:
-                    x3dnodelist = b2x_object(obj_main, obj_child, obj_child_children)
+                    [ x3dnodelist, after ] = b2x_object(obj_main, obj_child, obj_child_children, x3dmodel_scene)
+                    for a in after:
+                        prior_after.append(a)
                     if x3dnodelist:
                         for x3dnode in x3dnodelist:
+                            x3dnode.scale = (1, 1, 1)
+                            # x3dnode.rotation = (0, 1, 0, 3.1416)
                             node.skin.append(x3dnode)
                             for coord in b2xFindCoordinate(x3dnode):
-                                if node.skinCoord is not None:
-                                    print(f"*********************WARNING, overwriting skinCoord USE {node.skinCoord.USE}")
-                                node.skinCoord = Coordinate(USE=coord) # choose the last one I guess, but warn above
+                                # TODO handle skinCoord before skin
+                                node.skinCoord = Coordinate(USE=coord)  # only one SFNode is allowed.
+                after = prior_after
+                if node != None:
+                    bottom.children.append(node)
+                interpolators = b2xHAnimNode(obj, None, obj.name, "HAnimInterpolators")
+                print(f"Writing {len(interpolators)} nodes for animations.")
+                for i in interpolators:
+                    if isinstance(i, list):
+                        print(f"Writing {len(i)} sub-nodes for animations.")
+                        for j in i:
+                            after.append(j)
+                    else:
+                        print(f"Writing {i} sub-node for animations.")
+                        after.append(i)
                 children_processed = True
             else:
                 print("Info: Ignoring [%s], object type [%s] not handle yet" % (obj.name,obj_type))
-                pass
-            if node != None:
-                bottom.children.append(node)
+                # pass
 
         # ---------------------------------------------------------------------
         # write out children recursively
         # ---------------------------------------------------------------------
         if not children_processed:
+            prior_after = after
             for obj_child, obj_child_children in obj_children:
-                x3dnodelist = b2x_object(obj_main, obj_child, obj_child_children)
+                # no need to combine after's
+                [ x3dnodelist, after ] = b2x_object(obj_main, obj_child, obj_child_children, x3dmodel_scene)
                 if x3dnodelist:
                     for x3dnode in x3dnodelist:
                         bottom.children.append(x3dnode)
+                if after:
+                    for a in after:
+                        prior_after.append(a)
+            after = prior_after
         if is_dummy_tx:
             is_dummy_tx = False
 
-        return top.children
+        print(f"returning {len(after)} sub-nodes for animations.")
+        return [ top.children, after ]
 
     # -------------------------------------------------------------------------
     # Main Export Function
@@ -1960,12 +2340,63 @@ def export(context, x3dv_export_settings):
         else:
             objects_hierarchy = ((obj, []) for obj in objects)
 
+        # skeleton visualization
+        x3dmodel.Scene.children.append(
+            Transform( children=[
+                Shape(
+                    DEF="SiteShape",
+                    geometry=Box(size = (0.05, 0.05, 0.05)),
+                    appearance=Appearance(
+                        material=Material(
+                            diffuseColor = (0, 0, 1),
+                            transparency = 0
+                        ))
+                )
+            ])
+        )
+        #x3dmodel.Scene.children.append(
+        #    Transform( children=[
+        #        Shape(appearance=Appearance(lineProperties=LineProperties(linewidthScaleFactor=5)),
+        #              geometry=LineSet(
+        #                vertexCount=2,
+        #                coord=Coordinate(point=MFVec3f([(0, 0, 0), (0, 0, 0)])),
+        #                color=ColorRGBA(
+        #                    DEF='SegmentLineColor',
+        #                    color=MFColorRGBA([(1.0, 1.0, 1.0, 0.0), (1.0, 1.0, 1.0, 0.0)])
+        #                )
+        #        ))
+        #    ])
+        #)
+        x3dmodel.Scene.children.append(
+            Transform( children=[
+                Shape(
+                    DEF="JointShape",
+                    geometry=Sphere(radius=0.06),
+                    appearance=Appearance(
+                        DEF="JointAppearance",
+                        material=Material(
+                            diffuseColor = (1, 0.5, 0),
+                            transparency = 0.5
+                        ))
+                )
+            ])
+        )
+
         for obj_main, obj_main_children in objects_hierarchy:
-            x3dnodelist = b2x_object(None, obj_main, obj_main_children)
+            [ x3dnodelist, after ] = b2x_object(None, obj_main, obj_main_children, x3dmodel.Scene)
             if x3dnodelist:
                 for x3dnode in x3dnodelist:
                     x3dmodel.Scene.children.append(x3dnode)
+            if after:
+                print(f"appending {len(after)} sub-nodes for scene children.")
+                for a in after:
+                    x3dmodel.Scene.children.append(a)
+        # swap_USEbeforeDEF(node=x3dmodel.Scene)
+        USEdict = {}
+        DEFdict = {}
+        USEbeforeDEFdict = {}
         return x3dmodel
+
 
     x3dmodel = export_main()
 
@@ -2058,7 +2489,6 @@ def save_OLD(context,x3dv_export_settings):
 
     return {'FINISHED'}
 
-
 def save(context,export_settings):
     """Start the x3dv export and saves to content file."""
 
@@ -2072,6 +2502,7 @@ def save(context,export_settings):
 
     __notify_start(context)
     start_time = time.time()
+    x3dv_round_precision = export_settings['x3dv_round_precision']
 
     #x3dmodel = blender2x3d(export_settings) #test export of procedurally declared test scene
     x3dmodel = export(context, export_settings)

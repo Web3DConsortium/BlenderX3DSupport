@@ -457,6 +457,13 @@ class ExportX3DV_Base(ConvertX3DV_Base):
         description='Store x3dv export settings in the Blender project',
         default=False)
 
+    export_round_precision: IntProperty(
+            name="Round precision",
+            min=0, max=50,
+            default=6
+            )
+
+
     # Custom scene property for saving settings
     scene_key = "x3dvExportSettings"
 
@@ -555,6 +562,7 @@ class ExportX3DV_Base(ConvertX3DV_Base):
         export_settings['x3dv_copyright'] = self.export_copyright
         export_settings['x3dv_texcoords'] = self.export_texcoords
         export_settings['x3dv_normals'] = self.export_normals
+        export_settings['x3dv_round_precision'] = self.export_round_precision
         export_settings['x3dv_tangents'] = self.export_tangents and self.export_normals
         export_settings['x3dv_loose_edges'] = self.use_mesh_edges
         export_settings['x3dv_loose_points'] = self.use_mesh_vertices
@@ -776,6 +784,7 @@ class X3DV_PT_export_geometry_mesh(bpy.types.Panel):
         col = layout.column()
         col.prop(operator, 'use_mesh_edges')
         col.prop(operator, 'use_mesh_vertices')
+        layout.prop(operator, 'export_round_precision')
 
 
 class X3DV_PT_export_geometry_material(bpy.types.Panel):

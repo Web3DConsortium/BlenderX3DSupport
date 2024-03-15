@@ -408,8 +408,8 @@ def export(file,
             amb_intensity = 0.0
 
         # compute cutoff and beamwidth
-        intensity = min(lamp.energy / 1.75, 1.0)
-        beamWidth = lamp.spot_size * 0.37
+        intensity = min(light.energy / 1.75, 1.0)
+        beamWidth = light.spot_size * 0.37
         # beamWidth=((lamp.spotSize*math.pi)/180.0)*.37
         cutOffAngle = beamWidth * 1.3
 
@@ -417,7 +417,7 @@ def export(file,
 
         location = matrix.to_translation()[:]
 
-        radius = lamp.cutoff_distance
+        radius = light.cutoff_distance
         # radius = lamp.dist*math.cos(beamWidth)
         ident_step = ident + (' ' * (-len(ident) + \
         fw('%s<SpotLight ' % ident)))

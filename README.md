@@ -1,7 +1,7 @@
 # BlenderX3DSupport
 
 # Attention
-With the deployment of the Blender Extensions platform in May 2024 and the reorganization of the Blender Foundations open source code repositories, this repository, witch was forked from https://github.com/blender/blender-addons , is no longer useful for development in collaboration with the larger Blender community.
+With the deployment of the Blender Extensions platform in May 2024 and the reorganization of the Blender Foundations open source code repositories, this repository, which was forked from https://github.com/blender/blender-addons , is no longer useful for development in collaboration with the larger Blender community.
 
 Those users who have forked from this repository should evaluate whether they wih to continue to base their work on this repository. A pull-request to this repository will not be compatible with being passed on to the Blender codebase.
 
